@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "packId": "silverpine.starter-recipes",
+  "displayName": "Starter Recipes",
+  "enabled": true,
+  "recipes": [
+    {
+      "id": "wooden-door",
+      "enabled": true,
+      "stations": [ "CustomCrafting" ],
+      "ingredients": [
+        { "item": "Plank", "amount": 4 },
+        { "item": "Nails", "amount": 1 }
+      ],
+      "result": "Wooden Door",
+      "workMinutes": 20,
+      "description": "Fit the planks together and fasten them with nails."
+    }
+  ]
+}
