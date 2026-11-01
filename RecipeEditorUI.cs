@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Silverpine.ModdingTools;
+using Newtonsoft.Json;
 using UnityEngine;
 
 namespace SilverpineMods.CustomCraftingRecipes;
@@ -37,6 +38,13 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
     private string status = "";
     private bool customItemsOnly;
     private bool open;
+    private string savedSnapshot = "";
+    private Action? pendingChange;
+    private bool frameworkHandlesEscape;
+    private List<Item> pickerItems = new();
+    private string cachedSearch = "";
+    private bool cachedCustomOnly;
+    private int cachedCatalogRevision = -1;
 
     internal static void Open(ModToolSession session)
     {
@@ -51,6 +59,11 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
         }
 
         instance.AttachSession(session);
+        session.Closed += instance.SessionClosed;
+        var escapeProperty = typeof(ModToolSession).GetProperty("EscapeHandler");
+        instance.frameworkHandlesEscape = escapeProperty != null;
+        escapeProperty?.SetValue(session, (Func<bool>)instance.HandleEscape);
+        ItemCatalog.Refresh(force: true);
         instance.open = true;
         instance.RefreshDocuments();
     }
@@ -64,12 +77,58 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
 
     private void Update()
     {
-        if (!open || !Input.GetKeyDown(KeyCode.Escape))
-            return;
-        if (pickerTarget != PickerTarget.None)
-            ClosePicker();
-        else
-            Close();
+        if (!open) return;
+        ItemCatalog.Refresh();
+        if (!frameworkHandlesEscape && Input.GetKeyDown(KeyCode.Escape)) HandleEscape();
+    }
+
+    private bool HandleEscape()
+    {
+        if (pendingChange != null) pendingChange = null;
+        else if (pickerTarget != PickerTarget.None) ClosePicker();
+        else RequestChange(Close);
+        return true;
+    }
+
+    private string Snapshot() => document == null ? "" : JsonConvert.SerializeObject(document.Pack);
+    private void RequestChange(Action action)
+    {
+        if (document != null && (Snapshot() != savedSnapshot ||
+            workMinutesText != (CurrentRecipe?.workMinutes.ToString() ?? "10")))
+            pendingChange = action;
+        else action();
+    }
+
+    private void DrawUnsavedPrompt()
+    {
+        GUILayout.BeginArea(new Rect(560, 390, 800, 260), GUI.skin.box);
+        GUILayout.Label("This pack has unsaved changes.");
+        GUILayout.Label("Save the pack, discard the changes, or return to editing.");
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("Save and continue"))
+        {
+            Action next = pendingChange!;
+            if (SaveCurrentPack()) { pendingChange = null; next(); }
+            else pendingChange = null;
+            GUIUtility.ExitGUI();
+        }
+        if (GUILayout.Button("Discard"))
+        {
+            Action next = pendingChange!;
+            if (document != null && savedSnapshot.Length > 0)
+            {
+                var original = JsonConvert.DeserializeObject<RecipePackDefinition>(savedSnapshot)!;
+                int index = documents.IndexOf(document);
+                if (index >= 0) documents[index] = new RecipePackDocument(document.Path, original);
+            }
+            else if (document != null) documents.Remove(document);
+            pendingChange = null;
+            next();
+            GUIUtility.ExitGUI();
+        }
+        if (GUILayout.Button("Cancel")) { pendingChange = null; GUIUtility.ExitGUI(); }
+        GUILayout.EndHorizontal();
+        GUILayout.EndArea();
     }
 
     private void OnGUI()
@@ -77,14 +136,12 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
         if (!open)
             return;
 
+        using ModGuiScope scope = ModGui.BeginScaled(DesignWidth, DesignHeight);
         GUI.enabled = true;
         GUI.color = Color.white;
         GUI.backgroundColor = Color.white;
         GUI.depth = -1000;
-
-        using ModGuiScope scope = ModGui.BeginScaled(
-            DesignWidth,
-            DesignHeight);
+        if (pendingChange != null) { DrawUnsavedPrompt(); return; }
         Color old = GUI.color;
         GUI.color = new Color(0.055f, 0.075f, 0.095f, 0.99f);
         GUI.DrawTexture(
@@ -117,13 +174,13 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             $"{documents.Sum(value => value.Pack.recipes?.Count ?? 0)} " +
             $"recipe(s) • {CountCustomItems()} custom item(s) loaded");
         if (GUILayout.Button("Refresh Packs", GUILayout.Width(130)))
-            RefreshDocuments();
+            { RequestChange(RefreshDocuments); GUIUtility.ExitGUI(); }
         GUI.enabled = document != null;
         if (GUILayout.Button("Save Pack", GUILayout.Width(110)))
-            SaveCurrentPack();
+            { SaveCurrentPack(); GUIUtility.ExitGUI(); }
         GUI.enabled = true;
         if (GUILayout.Button("Close", GUILayout.Width(90)))
-            Close();
+            { RequestChange(Close); GUIUtility.ExitGUI(); }
         GUILayout.EndHorizontal();
     }
 
@@ -132,7 +189,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
         GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(330));
         GUILayout.Label("Recipe packs");
         if (GUILayout.Button("New Pack"))
-            CreatePack();
+            { RequestChange(CreatePack); GUIUtility.ExitGUI(); }
 
         packScroll = GUILayout.BeginScrollView(packScroll);
         foreach (RecipePackDocument candidate in documents)
@@ -146,7 +203,11 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             if (ReferenceEquals(candidate, document))
                 GUI.backgroundColor = new Color(0.55f, 0.75f, 0.92f);
             if (GUILayout.Button(label, GUILayout.MinHeight(44)))
-                SelectDocument(candidate);
+            {
+                if (!ReferenceEquals(candidate, document))
+                    RequestChange(() => SelectDocument(documents.FirstOrDefault(value => value.Path == candidate.Path) ?? candidate));
+                GUIUtility.ExitGUI();
+            }
             GUI.backgroundColor = old;
         }
         GUILayout.EndScrollView();
@@ -197,7 +258,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
                  index < document.Pack.recipes.Count;
                  index++)
             {
-                RecipeDefinition recipe = document.Pack.recipes[index];
+                RecipeDefinition recipe = document.Pack.recipes[index] ??= new RecipeDefinition { enabled = false };
                 string name = string.IsNullOrWhiteSpace(recipe.id)
                     ? $"Recipe {index + 1}"
                     : recipe.id;
@@ -254,7 +315,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
 
         GUILayout.Space(8);
         GUILayout.Label("Crafting stations");
-        int ingredientTotal = IngredientTotal(recipe);
+        long ingredientTotal = IngredientTotal(recipe);
         int distinctIngredients = DistinctIngredientCount(recipe);
         recipe.stations ??= new List<string>();
         foreach (CraftingStation station in Enum.GetValues(
@@ -262,8 +323,8 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
         {
             string stationName = station.ToString();
             bool selected = recipe.stations.Any(value =>
-                value.Equals(stationName, StringComparison.OrdinalIgnoreCase));
-            bool fits = station.Fits(distinctIngredients, ingredientTotal);
+                string.Equals(value?.Trim(), stationName, StringComparison.OrdinalIgnoreCase));
+            bool fits = ingredientTotal <= int.MaxValue && station.Fits(distinctIngredients, (int)ingredientTotal);
             GUI.enabled = fits || selected;
             bool next = GUILayout.Toggle(
                 selected,
@@ -276,9 +337,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             else if (!next && selected)
             {
                 recipe.stations.RemoveAll(value =>
-                    value.Equals(
-                        stationName,
-                        StringComparison.OrdinalIgnoreCase));
+                    string.Equals(value?.Trim(), stationName, StringComparison.OrdinalIgnoreCase));
             }
             if (!fits)
             {
@@ -294,13 +353,13 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
 
         GUILayout.Space(8);
         GUILayout.Label(
-            $"Ingredients ({recipe.ingredients?.Count ?? 0}/5 types, " +
+            $"Ingredients ({DistinctIngredientCount(recipe)}/{CraftingStation.CustomCrafting.Capacity()} types, " +
             $"{ingredientTotal} total items)");
         recipe.ingredients ??= new List<IngredientDefinition>();
         int removeIndex = -1;
         for (int index = 0; index < recipe.ingredients.Count; index++)
         {
-            IngredientDefinition ingredient = recipe.ingredients[index];
+            IngredientDefinition ingredient = recipe.ingredients[index] ??= new IngredientDefinition();
             GUILayout.BeginHorizontal(GUI.skin.box);
             GUILayout.Label($"{index + 1}.", GUILayout.Width(28));
             ingredient.item = GUILayout.TextField(
@@ -322,7 +381,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             if (GUILayout.Button("Remove", GUILayout.Width(72)))
                 removeIndex = index;
             GUILayout.EndHorizontal();
-            ingredient.amount = Math.Max(1, ingredient.amount);
+            // Invalid imported quantities stay visible until explicitly corrected.
         }
         if (removeIndex >= 0)
             recipe.ingredients.RemoveAt(removeIndex);
@@ -351,7 +410,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             workMinutesText,
             GUILayout.Width(180));
         if (int.TryParse(workMinutesText, out int minutes))
-            recipe.workMinutes = Mathf.Clamp(minutes, 1, 1440);
+            recipe.workMinutes = minutes;
 
         GUILayout.Label("Result text / crafting description");
         recipe.description = GUILayout.TextArea(
@@ -360,6 +419,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
 
         GUILayout.Space(10);
         List<string> problems = ValidateRecipe(recipe);
+        if (!int.TryParse(workMinutesText, out _)) problems.Add("Work time must be a whole number.");
         GUILayout.Label(
             problems.Count == 0
                 ? "Recipe is valid."
@@ -396,39 +456,42 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             itemSearch = "";
         GUILayout.EndHorizontal();
 
-        List<Item> items = ItemLibrary.Items
-            .Where(item => item != null)
-            .GroupBy(item => item.name, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
+        if (cachedCatalogRevision != ItemCatalog.Revision || cachedSearch != itemSearch || cachedCustomOnly != customItemsOnly)
+        {
+            cachedCatalogRevision = ItemCatalog.Revision;
+            cachedSearch = itemSearch;
+            cachedCustomOnly = customItemsOnly;
+            pickerItems = ItemCatalog.Items
             .Where(item =>
                 (!customItemsOnly || IsCustomItem(item)) &&
                 (string.IsNullOrWhiteSpace(itemSearch) ||
                  item.name.IndexOf(
                      itemSearch,
                      StringComparison.OrdinalIgnoreCase) >= 0))
-            .OrderBy(item => IsCustomItem(item) ? 0 : 1)
-            .ThenBy(item => item.name, StringComparer.OrdinalIgnoreCase)
             .ToList();
+        }
+        List<Item> items = pickerItems;
 
         GUILayout.Label($"{items.Count} matching item(s)");
-        pickerScroll = GUILayout.BeginScrollView(pickerScroll);
-        foreach (Item item in items)
-        {
-            string prefix = IsCustomItem(item) ? "[Custom] " : "[Native] ";
-            if (GUILayout.Button(
-                    prefix + item.name + "  •  " + item.itemCategory,
-                    GUILayout.MinHeight(34)))
-                ChooseItem(item.name);
-        }
-        GUILayout.EndScrollView();
+        Item? chosen = VirtualItemList.Draw(items, ref pickerScroll,
+            item => (IsCustomItem(item) ? "[Custom] " : "[Native] ") + item.name + "  •  " + item.itemCategory);
+        if (chosen != null) { ChooseItem(chosen.name); GUIUtility.ExitGUI(); }
         GUILayout.EndVertical();
     }
 
     private void RefreshDocuments()
     {
         string previousPath = document?.Path ?? "";
+        List<RecipePackDocument> loaded;
+        try { loaded = RecipeRegistry.LoadEditablePacks(); }
+        catch (Exception exception)
+        {
+            status = "Could not refresh packs: " + exception.Message;
+            Plugin.Log.LogError(status);
+            return;
+        }
         documents.Clear();
-        documents.AddRange(RecipeRegistry.LoadEditablePacks());
+        documents.AddRange(loaded);
         RecipePackDocument? restored = documents.FirstOrDefault(value =>
             value.Path.Equals(
                 previousPath,
@@ -450,6 +513,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
     {
         document = value;
         document.Pack.recipes ??= new List<RecipeDefinition>();
+        savedSnapshot = Snapshot();
         selectedRecipe = document.Pack.recipes.Count == 0 ? -1 : 0;
         pickerTarget = PickerTarget.None;
         SyncSelectedFields();
@@ -471,6 +535,8 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
         document = new RecipePackDocument("", pack);
         selectedRecipe = 0;
         SyncSelectedFields();
+        documents.Add(document);
+        savedSnapshot = "";
         status = "New pack created. Save it to create its .recipe.pack folder.";
     }
 
@@ -481,8 +547,10 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
 
         try
         {
+            if (CurrentRecipe != null && !int.TryParse(workMinutesText, out _))
+                throw new InvalidDataException("Work time must be a whole number.");
             ValidatePackMetadata(document.Pack);
-            if (validateRecipes)
+            if (validateRecipes && document.Pack.enabled)
             {
                 List<string> problems = ValidatePack(document.Pack);
                 if (problems.Count > 0)
@@ -491,6 +559,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
 
             RecipeRegistry.SavePack(document);
             string savedPath = document.Path;
+            string selectedId = CurrentRecipe?.id ?? "";
             documents.Clear();
             documents.AddRange(RecipeRegistry.LoadEditablePacks());
             RecipePackDocument? saved = documents.FirstOrDefault(value =>
@@ -498,7 +567,11 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
                     savedPath,
                     StringComparison.OrdinalIgnoreCase));
             if (saved != null)
+            {
                 SelectDocument(saved);
+                int restored = saved.Pack.recipes.FindIndex(recipe => recipe?.id == selectedId);
+                if (restored >= 0) { selectedRecipe = restored; SyncSelectedFields(); }
+            }
             status = $"Saved {Path.GetFileName(Path.GetDirectoryName(savedPath))} " +
                      "and reloaded all recipe packs.";
             return true;
@@ -533,9 +606,18 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
         HashSet<string> ids = new(StringComparer.OrdinalIgnoreCase);
         HashSet<string> signatures =
             new(StringComparer.OrdinalIgnoreCase);
+        foreach (RecipePackDocument other in documents.Where(value => !ReferenceEquals(value, document) && value.Pack.enabled))
+            foreach (RecipeDefinition? existing in other.Pack.recipes ?? new List<RecipeDefinition>())
+            {
+                if (existing == null || !existing.enabled || RecipeRules.Validate(existing).Count != 0) continue;
+                string signature = IngredientSignature(existing);
+                foreach (string station in existing.stations)
+                    if (RecipeRules.TryStation(station, out CraftingStation parsed)) signatures.Add(parsed + ":" + signature);
+            }
         for (int index = 0; index < pack.recipes.Count; index++)
         {
-            RecipeDefinition recipe = pack.recipes[index];
+            RecipeDefinition? recipe = pack.recipes[index];
+            if (recipe == null) { problems.Add($"Recipe {index + 1} is null."); continue; }
             if (!ids.Add(recipe.id?.Trim() ?? ""))
                 problems.Add($"Duplicate recipe ID '{recipe.id}'.");
             if (!recipe.enabled)
@@ -548,13 +630,14 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
                 continue;
             }
             string ingredientSignature = IngredientSignature(recipe);
-            foreach (string station in recipe.stations)
+            foreach (string station in recipe.stations.Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                if (!signatures.Add(station + ":" + ingredientSignature))
+                RecipeRules.TryStation(station, out CraftingStation parsed);
+                if (!signatures.Add(parsed + ":" + ingredientSignature))
                 {
                     problems.Add(
                         $"Recipe {index + 1} duplicates another {station} " +
-                        "ingredient combination in this pack.");
+                        "ingredient combination in an enabled pack.");
                 }
             }
         }
@@ -567,117 +650,33 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             throw new InvalidDataException("Pack ID is required.");
         RecipePackDocument? duplicate = documents.FirstOrDefault(value =>
             !ReferenceEquals(value, document) &&
-            value.Pack.packId.Equals(
-                pack.packId,
-                StringComparison.OrdinalIgnoreCase));
+            string.Equals(value.Pack.packId?.Trim(), pack.packId.Trim(), StringComparison.OrdinalIgnoreCase));
         if (duplicate != null)
             throw new InvalidDataException(
                 $"Pack ID '{pack.packId}' is already in use.");
         if (string.IsNullOrWhiteSpace(pack.displayName))
             pack.displayName = pack.packId.Trim();
+        pack.packId = pack.packId.Trim();
         pack.recipes ??= new List<RecipeDefinition>();
     }
 
-    private static List<string> ValidateRecipe(RecipeDefinition recipe)
+    internal static List<string> ValidateRecipe(RecipeDefinition recipe)
     {
-        List<string> problems = new();
-        if (string.IsNullOrWhiteSpace(recipe.id))
-            problems.Add("Recipe ID is required.");
-        if (recipe.ingredients == null || recipe.ingredients.Count == 0)
-            problems.Add("At least one ingredient is required.");
-        else
-        {
-            if (recipe.ingredients.Any(ingredient =>
-                    string.IsNullOrWhiteSpace(ingredient.item)))
-                problems.Add("Every ingredient needs an item.");
-            foreach (IngredientDefinition ingredient in recipe.ingredients
-                         .Where(ingredient =>
-                             !string.IsNullOrWhiteSpace(ingredient.item)))
-            {
-                if (!ItemExists(ingredient.item))
-                    problems.Add(
-                        $"Ingredient '{ingredient.item}' is not loaded.");
-            }
-            if (recipe.ingredients.Count >
-                CraftingStation.CustomCrafting.Capacity())
-                problems.Add("Recipes may use at most ten ingredient types.");
-            int duplicateTypes = recipe.ingredients
-                .Where(ingredient =>
-                    !string.IsNullOrWhiteSpace(ingredient.item))
-                .GroupBy(
-                    ingredient => ingredient.item.Trim(),
-                    StringComparer.OrdinalIgnoreCase)
-                .Count(group => group.Count() > 1);
-            if (duplicateTypes > 0)
-                problems.Add(
-                    "Combine duplicate ingredient rows by increasing quantity.");
-        }
-        if (recipe.stations == null || recipe.stations.Count == 0)
-            problems.Add("Select at least one crafting station.");
-        else
-        {
-            int total = IngredientTotal(recipe);
-            int distinct = DistinctIngredientCount(recipe);
-            foreach (string value in recipe.stations)
-            {
-                if (!Enum.TryParse(
-                        value,
-                        ignoreCase: true,
-                        out CraftingStation station))
-                    problems.Add($"Unknown station '{value}'.");
-                else if (!station.Fits(distinct, total))
-                    problems.Add(
-                        station == CraftingStation.CustomCrafting
-                            ? $"{station} has only {station.Capacity()} " +
-                              "distinct ingredient slots."
-                            : $"{station} has only {station.Capacity()} slots.");
-            }
-        }
-        if (string.IsNullOrWhiteSpace(recipe.result))
-            problems.Add("A result item is required.");
-        else if (!ItemExists(recipe.result))
-            problems.Add($"Result '{recipe.result}' is not loaded.");
-        if (recipe.workMinutes < 1 || recipe.workMinutes > 1440)
-            problems.Add("Work time must be between 1 and 1440 minutes.");
+        List<string> problems = RecipeRules.Validate(recipe);
+        foreach (IngredientDefinition? ingredient in recipe.ingredients ?? new List<IngredientDefinition>())
+            if (ingredient != null && !string.IsNullOrWhiteSpace(ingredient.item) && !ItemCatalog.Contains(ingredient.item, false))
+                problems.Add($"Ingredient '{ingredient.item}' is not loaded.");
+        if (!string.IsNullOrWhiteSpace(recipe.result) && !ItemCatalog.Contains(recipe.result, true))
+            problems.Add($"Result '{recipe.result}' is not loaded or its quality prefix is invalid.");
         return problems;
     }
 
-    private static bool ItemExists(string configuredName)
-    {
-        int separator = configuredName.LastIndexOf('|');
-        string name = separator >= 0
-            ? configuredName.Substring(separator + 1)
-            : configuredName;
-        return ItemLibrary.Items.Any(item =>
-            string.Equals(item.name, name, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static string IngredientSignature(RecipeDefinition recipe) =>
-        string.Join(
-            "|",
-            recipe.ingredients
-                .Where(ingredient =>
-                    !string.IsNullOrWhiteSpace(ingredient.item))
-                .GroupBy(
-                    ingredient => ingredient.item.Trim(),
-                    StringComparer.OrdinalIgnoreCase)
-                .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(group =>
-                    group.Key.ToLowerInvariant() + "=" +
-                    group.Sum(ingredient => Math.Max(1, ingredient.amount))));
-
-    private static int IngredientTotal(RecipeDefinition recipe) =>
-        recipe.ingredients?.Sum(ingredient =>
-            Math.Max(1, ingredient?.amount ?? 1)) ?? 0;
-
+    private static string IngredientSignature(RecipeDefinition recipe) => RecipeRules.Signature(RecipeRules.Counts(recipe));
+    private static long IngredientTotal(RecipeDefinition recipe) =>
+        recipe.ingredients?.Sum(ingredient => (long)Math.Max(0, ingredient?.amount ?? 0)) ?? 0;
     private static int DistinctIngredientCount(RecipeDefinition recipe) =>
-        recipe.ingredients?
-            .Where(ingredient =>
-                ingredient != null &&
-                !string.IsNullOrWhiteSpace(ingredient.item))
-            .Select(ingredient => ingredient.item.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Count() ?? 0;
+        recipe.ingredients?.Where(ingredient => ingredient != null && !string.IsNullOrWhiteSpace(ingredient.item))
+            .Select(ingredient => ingredient.item.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() ?? 0;
 
     private void CreateRecipe()
     {
@@ -686,7 +685,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
         document.Pack.recipes ??= new List<RecipeDefinition>();
         int suffix = 1;
         HashSet<string> ids = document.Pack.recipes
-            .Select(recipe => recipe.id ?? "")
+            .Select(recipe => recipe?.id ?? "")
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         string id;
         do
@@ -727,6 +726,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             enabled = source.enabled,
             stations = source.stations?.ToList() ?? new List<string>(),
             ingredients = source.ingredients?
+                .Where(ingredient => ingredient != null)
                 .Select(ingredient => new IngredientDefinition
                 {
                     item = ingredient.item,
@@ -756,7 +756,10 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
 
     private void SelectRecipe(int index)
     {
+        if (CurrentRecipe != null && !int.TryParse(workMinutesText, out _))
+        { status = "Enter a valid work time before changing recipes."; return; }
         selectedRecipe = index;
+        ClosePicker();
         detailsScroll = Vector2.zero;
         SyncSelectedFields();
     }
@@ -814,12 +817,21 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             "custom:",
             StringComparison.OrdinalIgnoreCase) == true;
 
-    private static int CountCustomItems() =>
-        ItemLibrary.Items.Count(IsCustomItem);
+    private static int CountCustomItems() => ItemCatalog.CustomCount;
+
+    private void SessionClosed()
+    {
+        open = false;
+        pendingChange = null;
+        pickerTarget = PickerTarget.None;
+        document = null;
+        documents.Clear();
+    }
 
     private void Close()
     {
         open = false;
+        pendingChange = null;
         pickerTarget = PickerTarget.None;
         document = null;
         documents.Clear();

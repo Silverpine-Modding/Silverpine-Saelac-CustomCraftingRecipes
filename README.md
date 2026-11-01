@@ -29,6 +29,9 @@ A BepInEx/Harmony plugin for Silverpine 1.7.3 that completes the dormant
 Native Alchemy and Cooking recipes remain available. Repair and
 combination-item crafting are not changed.
 
+Requires Modding Tools 1.3.0 or newer. Newer ModTools versions also provide
+coordinated Escape handling for the editor's picker and unsaved-change prompt.
+
 ## Recipe file
 
 On first launch, the plugin creates a starter pack at:
@@ -89,6 +92,16 @@ so the editor blocks them and the runtime keeps the first valid definition. A
 recipe may use at most ten distinct ingredient types. The editor currently
 allows a quantity of 1-999 for each type.
 
+The same quantity and station rules are enforced when loading hand-written
+JSON packs. Invalid recipes are skipped with a logged explanation. Every
+selected station must fit the recipe; unsupported numeric station values,
+invalid quantities and work times are rejected. Ingredient names are plain
+display names; quality prefixes apply only to results. Repeated ingredient
+rows are combined, with a maximum combined quantity of 999 per item type.
+
+Saving replaces a pack atomically and retains its previous contents in
+`recipes.json.bak`. The editor prompts before discarding unsaved changes.
+
 ## Build
 
 ```powershell
@@ -96,6 +109,41 @@ dotnet build -c Release
 ```
 
 The DLL is written to `bin/Release/CustomCraftingRecipes.dll`.
+
+## Fixes in 1.2.2
+
+Crafting result previews now receive a temporary inventory before the game
+formats their names or descriptions. This fixes the "does not have an
+inventory assigned" error for outputs such as custom seed bags. Previewing
+does not add items to the player's inventory or run pickup callbacks; normal
+inventory ownership is assigned when crafting delivers the result. The fix
+also covers configured Alchemy/Cooking results and native Cooking previews.
+
+Run the inventory ownership regression checks with:
+
+```powershell
+dotnet run --project Tests/RegressionTests.csproj -c Release
+```
+
+## Audit update: 1.3.0
+
+- Checked crafting delivery for CustomCrafting, Cooking, and Alchemy: verify
+  selected item instances at completion, account for space freed by ingredients,
+  and restore ingredients if output insertion fails.
+- Result creation failures produce a non-craftable message instead of a null
+  preview crash. The 1.2.2 seed-bag preview fix remains included.
+- One shared validation implementation for editor and runtime; ten-slot native
+  metadata and editor labels now agree with the custom screen.
+- Indexed recipe matching, cached previews and inventory counts, and a shared
+  item catalog that notices custom-item additions, replacements, and renames.
+- Large item browsers render only visible rows. Long result descriptions have
+  a dedicated scroll area so the Craft button remains accessible.
+- CustomCrafting releases its input block and subscriptions when closed,
+  disabled, destroyed, or moved between scenes. Plugin patches and menu
+  registration remain active for the process lifetime.
+
+See [AUDIT.md](AUDIT.md) for findings, test coverage, benchmark results, and the
+remaining in-game verification steps.
 
 ## Credits
 

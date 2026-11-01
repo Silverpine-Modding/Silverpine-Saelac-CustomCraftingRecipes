@@ -18,7 +18,7 @@ namespace SilverpineMods.CustomCraftingRecipes;
 [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
 [BepInDependency(
     Silverpine.ModdingTools.Plugin.PluginGuid,
-    BepInDependency.DependencyFlags.HardDependency)]
+    "1.3.0")]
 [BepInDependency(
     "renegadex.silverpine.customitemloader",
     BepInDependency.DependencyFlags.SoftDependency)]
@@ -27,7 +27,7 @@ public sealed class Plugin : BaseUnityPlugin
     public const string PluginGuid =
         "renegadex.silverpine.customcraftingrecipes";
     public const string PluginName = "Custom Crafting Recipes";
-    public const string PluginVersion = "1.2.1";
+    public const string PluginVersion = "1.3.0";
 
     internal static ManualLogSource Log { get; private set; } = null!;
 
@@ -43,9 +43,14 @@ public sealed class Plugin : BaseUnityPlugin
             "Reload recipes.json. Close and reopen an active crafting menu " +
             "after reloading so its ingredient slots are rebuilt.");
 
-        RecipeRegistry.Initialize(Path.Combine(
-            Paths.ConfigPath,
-            "CustomCraftingRecipes"));
+        try
+        {
+            RecipeRegistry.Initialize(Path.Combine(Paths.ConfigPath, "CustomCraftingRecipes"));
+        }
+        catch (Exception exception)
+        {
+            Log.LogError("Could not load recipes; fix the pack files and reload: " + exception);
+        }
 
         ModdingToolsMenu.RegisterSession(
             PluginGuid + ".recipe-editor",
@@ -65,7 +70,12 @@ public sealed class Plugin : BaseUnityPlugin
         if (!Input.GetKeyDown(reloadKey.Value))
             return;
 
-        RecipeRegistry.Reload();
+        try { RecipeRegistry.Reload(); }
+        catch (Exception exception)
+        {
+            Log.LogError("Recipe reload failed; retaining the previous registry: " + exception);
+            return;
+        }
         Log.LogInfo("Custom-crafting recipes reloaded. Close and reopen " +
                     "an active crafting menu to refresh its slots.");
     }
@@ -94,9 +104,9 @@ internal static class CraftingStationInfo
         this CraftingStation station,
         int distinctIngredients,
         int totalItems) =>
-        station == CraftingStation.CustomCrafting
+        distinctIngredients > 0 && totalItems > 0 && (station == CraftingStation.CustomCrafting
             ? distinctIngredients <= station.Capacity()
-            : totalItems <= station.Capacity();
+            : totalItems <= station.Capacity());
 }
 
 [HarmonyPatch(typeof(CraftingUI), nameof(CraftingUI.Open))]
@@ -310,9 +320,12 @@ internal static class RecipeRegistry
     private static readonly HashSet<string> LoggedMissingResults =
         new(StringComparer.OrdinalIgnoreCase);
     private static List<CompiledRecipe> recipes = new();
+    private static readonly Dictionary<string, CompiledRecipe> recipeIndex =
+        new(StringComparer.OrdinalIgnoreCase);
     private static string definitionDirectory = "";
 
     internal static int Count => recipes.Count;
+    internal static int Revision { get; private set; }
     internal static int PackCount { get; private set; }
     internal static int EnabledPackCount { get; private set; }
     internal static string DefinitionDirectory => definitionDirectory;
@@ -374,11 +387,17 @@ internal static class RecipeRegistry
             }
 
             enabledPacks++;
+            HashSet<string> recipeIds = new(StringComparer.OrdinalIgnoreCase);
             for (int index = 0; index < pack.recipes.Count; index++)
             {
                 RecipeDefinition? definition = pack.recipes[index];
                 if (definition == null || !definition.enabled)
                     continue;
+                if (!recipeIds.Add(definition.id?.Trim() ?? ""))
+                {
+                    Warn(packId, $"contains duplicate recipe ID '{definition.id}'; the later recipe was skipped.");
+                    continue;
+                }
                 if (TryCompile(
                         packId,
                         definition,
@@ -390,6 +409,11 @@ internal static class RecipeRegistry
         }
 
         recipes = loaded;
+        recipeIndex.Clear();
+        foreach (CompiledRecipe recipe in recipes)
+            foreach (CraftingStation station in recipe.Stations)
+                recipeIndex[station + ":" + RecipeRules.Signature(recipe.RequiredItems)] = recipe;
+        Revision++;
         PackCount = paths.Length;
         EnabledPackCount = enabledPacks;
         LoggedMissingResults.Clear();
@@ -446,10 +470,19 @@ internal static class RecipeRegistry
         }
 
         string json = JsonConvert.SerializeObject(pack, Formatting.Indented);
-        string temporaryPath = document.Path + ".tmp";
-        File.WriteAllText(temporaryPath, json + Environment.NewLine);
-        File.Copy(temporaryPath, document.Path, overwrite: true);
-        File.Delete(temporaryPath);
+        string temporaryPath = document.Path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            File.WriteAllText(temporaryPath, json + Environment.NewLine);
+            if (File.Exists(document.Path))
+                File.Replace(temporaryPath, document.Path, document.Path + ".bak");
+            else
+                File.Move(temporaryPath, document.Path);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+        }
         Reload();
     }
 
@@ -462,6 +495,10 @@ internal static class RecipeRegistry
                 JsonSettings);
         if (pack == null)
             throw new InvalidDataException("The recipe pack is empty.");
+        if (pack.schemaVersion != 1)
+            throw new InvalidDataException($"Unsupported recipe schema version {pack.schemaVersion}.");
+        pack.packId = pack.packId?.Trim() ?? "";
+        pack.displayName ??= "";
         pack.recipes ??= new List<RecipeDefinition>();
         return pack;
     }
@@ -528,8 +565,9 @@ internal static class RecipeRegistry
 
     internal static List<ItemSelectionFieldInfo> CreateCustomCraftingFields()
     {
-        List<ItemSelectionFieldInfo> fields = new(5);
-        for (int index = 0; index < 5; index++)
+        int capacity = CraftingStation.CustomCrafting.Capacity();
+        List<ItemSelectionFieldInfo> fields = new(capacity);
+        for (int index = 0; index < capacity; index++)
         {
             fields.Add(new ItemSelectionFieldInfo(
                 $"Ingredient {index + 1}",
@@ -548,7 +586,7 @@ internal static class RecipeRegistry
         {
             Predicate<Item> original = field.predicate;
             field.predicate = item =>
-                original(item) || IsIngredient(station, item);
+                item != null && (original(item) || IsIngredient(station, item));
         }
     }
 
@@ -596,23 +634,23 @@ internal static class RecipeRegistry
         IReadOnlyDictionary<string, int> selectedCounts,
         out ResultData result)
     {
-        int selectedCount = selectedCounts.Values.Sum();
-        if (selectedCount == 0)
+        if (!TryFindRecipe(station, selectedCounts, out CompiledRecipe? recipe))
         {
             result = ResultData.None;
             return false;
         }
-        CompiledRecipe? recipe = recipes.FirstOrDefault(candidate =>
-            candidate.Stations.Contains(station) &&
-            candidate.Matches(selectedCounts, selectedCount));
-        if (recipe == null)
-        {
-            result = ResultData.None;
-            return false;
-        }
-
-        result = BuildResult(recipe);
+        result = BuildResult(recipe!);
         return true;
+    }
+
+    internal static bool TryFindRecipe(CraftingStation station,
+        IReadOnlyDictionary<string, int> selectedCounts, out CompiledRecipe? recipe)
+    {
+        recipe = null;
+        if (selectedCounts.Count == 0 || selectedCounts.Count > CraftingStation.CustomCrafting.Capacity() ||
+            selectedCounts.Any(p => string.IsNullOrWhiteSpace(p.Key) || p.Value < 1 || p.Value > RecipeRules.MaxQuantity))
+            return false;
+        return recipeIndex.TryGetValue(station + ":" + RecipeRules.Signature(selectedCounts), out recipe);
     }
 
     internal static ResultData GetCookingResult(
@@ -636,13 +674,17 @@ internal static class RecipeRegistry
                 selected[0].GetItemComponent<ItemComponent_Cookable>();
             if (cookable != null)
             {
-                Item cooked = ItemLibrary.GetItemByName(
-                    cookable.resultItem,
-                    logInvalid: false);
-                return new ResultData(
-                    cooked.GetFinalDescription(),
-                    cooked,
-                    10);
+                try
+                {
+                    Item cooked = CreatePreviewItem(cookable.resultItem);
+                    return new ResultData(cooked.GetFinalDescription(), cooked, 10);
+                }
+                catch (Exception exception)
+                {
+                    if (LoggedMissingResults.Add(cookable.resultItem ?? ""))
+                        Plugin.Log.LogError("Could not create cooked result: " + exception);
+                    return new ResultData("The cooked result item could not be created. Check its item definition.", null, 0);
+                }
             }
         }
         return NoRecipeResult;
@@ -656,20 +698,20 @@ internal static class RecipeRegistry
 
     internal static bool IsSafeForNativeAlchemy(List<Item>? items)
     {
-        if (items == null || items.Any(item => item == null))
-            return true;
-        if (items.Count < 4)
+        if (items == null || items.Count != 4)
+            return false;
+        if (items.Any(item => item == null))
             return true;
 
         ItemComponent_AlchemyIngredient? component;
         bool validBase = items[0].TryGetItemComponent(out component) &&
-            component != null &&
+            component?.alchemyEffectTypes != null &&
             component.alchemyEffectTypes.Contains(AlchemyEffectType.Base);
         bool validFirst = items[1].TryGetItemComponent(out component) &&
-            component != null &&
+            component?.alchemyEffectTypes != null &&
             component.alchemyEffectTypes.Any(type => type != AlchemyEffectType.Base);
         bool validSecond = items[2].TryGetItemComponent(out component) &&
-            component != null &&
+            component?.alchemyEffectTypes != null &&
             component.alchemyEffectTypes.Any(type => type != AlchemyEffectType.Base);
         return validBase && validFirst && validSecond &&
                items[3].name == "Glass Vial";
@@ -678,149 +720,49 @@ internal static class RecipeRegistry
     private static bool IsIngredient(CraftingStation station, Item? item) =>
         item != null && IngredientNames[station].Contains(item.name);
 
-    private static ResultData BuildResult(CompiledRecipe recipe)
-    {
-        string lookupName = recipe.ResultName;
-        int separatorIndex = lookupName.LastIndexOf('|');
-        string baseName = separatorIndex >= 0
-            ? lookupName.Substring(separatorIndex + 1)
-            : lookupName;
-        Item? template = ItemLibrary.Items.FirstOrDefault(item =>
-            string.Equals(
-                item.name,
-                baseName,
-                StringComparison.OrdinalIgnoreCase));
-        if (template == null)
-        {
-            if (LoggedMissingResults.Add(recipe.ResultName))
+    private static ResultData BuildResult(CompiledRecipe recipe) =>
+        RecipeResultFactory.Build(recipe, ItemLibrary.Items,
+            name => ItemLibrary.GetItemByName(name, logInvalid: false),
+            Player.Instance != null ? Player.Instance.worldInventory.inventory : null,
+            exception =>
             {
-                Plugin.Log.LogError(
-                    $"Recipe '{recipe.Id}' refers to unknown result item " +
-                    $"'{recipe.ResultName}'.");
-            }
-            return new ResultData(
-                $"Recipe '{recipe.Id}' has an unknown result item: " +
-                $"<color=\"yellow\">{recipe.ResultName}</color>.",
-                null,
-                0);
-        }
+                if (LoggedMissingResults.Add(recipe.ResultName))
+                    Plugin.Log.LogError($"Could not create result for '{recipe.Id}': {exception}");
+            });
 
-        Item result = ItemLibrary.GetItemByName(
-            recipe.ResultName,
-            logInvalid: false);
-        string text = string.IsNullOrWhiteSpace(recipe.Description)
-            ? $"Creates <color=\"yellow\">{result.GetFinalName()}</color>."
-            : recipe.Description;
-        return new ResultData(text, result, recipe.WorkMinutes);
-    }
+    private static Item CreatePreviewItem(string name) =>
+        RecipeResultFactory.CreatePreview(name, ItemLibrary.Items,
+            value => ItemLibrary.GetItemByName(value, logInvalid: false),
+            Player.Instance != null ? Player.Instance.worldInventory.inventory : null);
 
-    private static bool TryCompile(
-        string packId,
-        RecipeDefinition definition,
-        int index,
-        HashSet<string> stationSignatures,
-        out CompiledRecipe? compiled)
+    internal static bool TryCompile(string packId, RecipeDefinition definition, int index,
+        HashSet<string> stationSignatures, out CompiledRecipe? compiled)
     {
         compiled = null;
-        string localId = string.IsNullOrWhiteSpace(definition.id)
-            ? $"recipe-{index + 1}"
-            : definition.id.Trim();
-        string id = packId + ":" + localId;
-        if (definition.ingredients == null ||
-            definition.ingredients.Count == 0)
+        string id = packId + ":" + (definition.id?.Trim() ?? $"recipe-{index + 1}");
+        List<string> errors = RecipeRules.Validate(definition);
+        if (errors.Count > 0)
         {
-            Warn(id, "has no ingredients and was skipped.");
+            Warn(id, string.Join(" ", errors) + " Recipe skipped.");
             return false;
         }
-        if (string.IsNullOrWhiteSpace(definition.result))
+        Dictionary<string, int> required = RecipeRules.Counts(definition);
+        string signature = RecipeRules.Signature(required);
+        HashSet<CraftingStation> stations = new();
+        foreach (string value in definition.stations)
         {
-            Warn(id, "has no result item and was skipped.");
-            return false;
-        }
-
-        Dictionary<string, int> required =
-            new(StringComparer.OrdinalIgnoreCase);
-        foreach (IngredientDefinition? ingredient in definition.ingredients)
-        {
-            if (ingredient == null || string.IsNullOrWhiteSpace(ingredient.item))
+            RecipeRules.TryStation(value, out CraftingStation station);
+            if (stations.Contains(station)) continue;
+            if (!stationSignatures.Add(station + ":" + signature))
             {
-                Warn(id, "contains an ingredient with no item name.");
-                return false;
-            }
-            string itemName = ingredient.item.Trim();
-            int amount = ingredient.amount <= 0 ? 1 : ingredient.amount;
-            required.TryGetValue(itemName, out int existing);
-            required[itemName] = existing + amount;
-        }
-
-        int ingredientCount = required.Values.Sum();
-        if (required.Count > CraftingStation.CustomCrafting.Capacity())
-        {
-            Warn(id, "requires more than ten distinct ingredients and was skipped.");
-            return false;
-        }
-
-        List<string> configuredStations = definition.stations == null ||
-                                          definition.stations.Count == 0
-            ? new List<string> { nameof(CraftingStation.CustomCrafting) }
-            : definition.stations;
-        HashSet<CraftingStation> validStations = new();
-        string signature = string.Join(
-            "|",
-            required.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(pair =>
-                    pair.Key.ToLowerInvariant() + "=" + pair.Value));
-
-        foreach (string? stationName in configuredStations)
-        {
-            if (!Enum.TryParse(
-                    stationName?.Trim(),
-                    ignoreCase: true,
-                    out CraftingStation station))
-            {
-                Warn(id, $"uses unknown station '{stationName}'.");
+                Warn(id, $"duplicates another {station} ingredient combination; that station was skipped.");
                 continue;
             }
-            if (!station.Fits(required.Count, ingredientCount))
-            {
-                Warn(
-                    id,
-                    station == CraftingStation.CustomCrafting
-                        ? $"cannot use {station}: it needs {required.Count} " +
-                          $"distinct ingredients but that UI has " +
-                          $"{station.Capacity()} quantity slots."
-                        : $"cannot use {station}: it needs {ingredientCount} " +
-                          $"items but that UI has {station.Capacity()} slots.");
-                continue;
-            }
-            string stationSignature = station + ":" + signature;
-            if (!stationSignatures.Add(stationSignature))
-            {
-                Warn(
-                    id,
-                    $"duplicates another {station} ingredient combination; " +
-                    "that station was skipped.");
-                continue;
-            }
-            validStations.Add(station);
+            stations.Add(station);
         }
-
-        if (validStations.Count == 0)
-        {
-            Warn(id, "has no valid crafting stations and was skipped.");
-            return false;
-        }
-
-        int workMinutes = definition.workMinutes <= 0
-            ? 10
-            : Math.Min(definition.workMinutes, 1440);
-        compiled = new CompiledRecipe(
-            id,
-            required,
-            validStations,
-            definition.result.Trim(),
-            workMinutes,
-            definition.description?.Trim() ?? "");
+        if (stations.Count == 0) return false;
+        compiled = new CompiledRecipe(id, required, stations, definition.result.Trim(),
+            definition.workMinutes, definition.description?.Trim() ?? "");
         return true;
     }
 

@@ -5,12 +5,21 @@
     <Nullable>enable</Nullable>
     <AssemblyName>CustomCraftingRecipes</AssemblyName>
     <RootNamespace>SilverpineMods.CustomCraftingRecipes</RootNamespace>
-    <Version>1.2.1</Version>
+    <Version>1.3.0</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Tests\**\*.cs" />
+    <Reference Include="UnityEngine.UI">
+      <HintPath>..\..\Silverpine_Data\Managed\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>..\..\Silverpine_Data\Managed\Unity.TextMeshPro.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\Silverpine_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
