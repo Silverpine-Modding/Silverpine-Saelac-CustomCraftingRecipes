@@ -51,6 +51,7 @@ Check(other.inventory != null && other.inventory.ContainsItem(other) && other.Ad
     "preview works without an active player and keeps separate result inventories");
 Check(!ReferenceEquals(preview, other.inventory), "unrelated previews do not accumulate together");
 AuditChecks.Run(Check);
+PackRenameChecks.Run(Check);
 Console.WriteLine($"{passed} regression checks passed.");
 
 sealed class ObservedItem : Item

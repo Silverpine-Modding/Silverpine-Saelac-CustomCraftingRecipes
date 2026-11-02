@@ -27,7 +27,7 @@ public sealed class Plugin : BaseUnityPlugin
     public const string PluginGuid =
         "renegadex.silverpine.customcraftingrecipes";
     public const string PluginName = "Custom Crafting Recipes";
-    public const string PluginVersion = "1.3.0";
+    public const string PluginVersion = "1.3.1";
 
     internal static ManualLogSource Log { get; private set; } = null!;
 
@@ -440,7 +440,8 @@ internal static class RecipeRegistry
         {
             try
             {
-                documents.Add(new RecipePackDocument(path, ReadPack(path)));
+                string sourceText = File.ReadAllText(path);
+                documents.Add(new RecipePackDocument(path, ParsePack(sourceText), sourceText));
             }
             catch (Exception exception)
             {
@@ -456,39 +457,16 @@ internal static class RecipeRegistry
         RecipePackDefinition pack = document.Pack;
         pack.schemaVersion = 1;
         pack.recipes ??= new List<RecipeDefinition>();
-        if (string.IsNullOrWhiteSpace(document.Path))
-        {
-            string folderName = SafeFileName(pack.packId) + ".recipe.pack";
-            string folder = Path.Combine(definitionDirectory, folderName);
-            if (Directory.Exists(folder))
-            {
-                throw new IOException(
-                    $"A recipe-pack folder named '{folderName}' already exists.");
-            }
-            Directory.CreateDirectory(folder);
-            document.Path = Path.Combine(folder, "recipes.json");
-        }
-
-        string json = JsonConvert.SerializeObject(pack, Formatting.Indented);
-        string temporaryPath = document.Path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            File.WriteAllText(temporaryPath, json + Environment.NewLine);
-            if (File.Exists(document.Path))
-                File.Replace(temporaryPath, document.Path, document.Path + ".bak");
-            else
-                File.Move(temporaryPath, document.Path);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-        }
+        pack.packId = pack.packId?.Trim() ?? "";
+        string json = JsonConvert.SerializeObject(pack, Formatting.Indented) + Environment.NewLine;
+        RecipePackStore.Save(definitionDirectory, document, json);
         Reload();
     }
 
-    internal static RecipePackDefinition ReadPack(string path)
+    internal static RecipePackDefinition ReadPack(string path) => ParsePack(File.ReadAllText(path));
+
+    private static RecipePackDefinition ParsePack(string json)
     {
-        string json = File.ReadAllText(path);
         RecipePackDefinition? pack =
             JsonConvert.DeserializeObject<RecipePackDefinition>(
                 json,
@@ -551,16 +529,6 @@ internal static class RecipeRegistry
         {
             File.WriteAllText(destination, DefaultPackJson);
         }
-    }
-
-    private static string SafeFileName(string value)
-    {
-        string safe = string.IsNullOrWhiteSpace(value)
-            ? "new-recipes"
-            : value.Trim();
-        foreach (char invalid in Path.GetInvalidFileNameChars())
-            safe = safe.Replace(invalid, '_');
-        return safe.Replace(':', '_');
     }
 
     internal static List<ItemSelectionFieldInfo> CreateCustomCraftingFields()
@@ -859,14 +827,17 @@ internal sealed class RecipePackDocument
 {
     internal RecipePackDocument(
         string path,
-        RecipePackDefinition pack)
+        RecipePackDefinition pack,
+        string? sourceText = null)
     {
         Path = path;
         Pack = pack;
+        SourceText = sourceText;
     }
 
     internal string Path { get; set; }
     internal RecipePackDefinition Pack { get; }
+    internal string? SourceText { get; set; }
 }
 
 [Serializable]

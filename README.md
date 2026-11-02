@@ -102,6 +102,20 @@ rows are combined, with a maximum combined quantity of 999 per item type.
 Saving replaces a pack atomically and retains its previous contents in
 `recipes.json.bak`. The editor prompts before discarding unsaved changes.
 
+On Save, the folder follows the **Pack ID**, with `.recipe.pack` appended only
+if the ID does not already end with it. Changing only the display name changes
+the menu label, not the folder. Existing folders left under an old/default name
+are corrected the next time that pack is saved; nothing is renamed on startup.
+To repair one, select the existing pack, check its Pack ID, then save it.
+
+Pack IDs used by the editor must contain only letters, numbers, dots,
+underscores, and hyphens; trailing dots and Windows device names are rejected.
+Renaming moves the whole folder, including backups and companion files. It
+never merges into or overwrites another folder, and a failed write rolls the
+rename back. External JSON edits are detected before saving. Linked folders
+and folders containing other JSON documents cannot be renamed automatically;
+keep each recipe pack in a dedicated folder.
+
 ## Build
 
 ```powershell
@@ -109,6 +123,17 @@ dotnet build -c Release
 ```
 
 The DLL is written to `bin/Release/CustomCraftingRecipes.dll`.
+
+## Pack-folder fix: 1.3.1
+
+- Saving a changed Pack ID now renames the existing folder, including
+  case-only changes, and refreshes the editor's saved path.
+- Saving also repairs old/default folder names without changing recipe
+  contents or the pack's existing ID.
+- Required `.recipe.pack` suffixes are not duplicated.
+- Refuses occupied destinations and external edits; failed saves preserve
+  the original files and report a recovery location if rollback is blocked.
+- 139 automated regression checks pass, including 42 new rename/save checks.
 
 ## Fixes in 1.2.2
 

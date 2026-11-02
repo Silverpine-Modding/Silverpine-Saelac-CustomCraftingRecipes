@@ -80,3 +80,24 @@ The automated results do not establish compatibility with every third-party
 Harmony patch or arbitrary item callback. The new native crafting hook is
 limited to the three supported Cooking/Alchemy data types; Repair and unrelated
 crafting UIs retain their original path.
+
+## 1.3.1 follow-up — 2026-11-02
+
+The original audit did not cover changing a saved Pack ID. Saving kept the
+original folder instead of moving it to match the new ID. This is corrected
+with folder moves, collision checks, case-only rename handling, atomic JSON
+saves, external-edit detection, and rollback on write failure. Existing default
+folder names are repaired on the next Save, not automatically at startup.
+
+Release build: zero warnings/errors; **139 regression checks passed**. The 42
+new checks cover first-save naming, old-folder repair, suffix handling, moved
+companion files and backups, unchanged recipe contents, registry reload and
+enable/disable behavior, case-only moves, occupied destinations, external
+edits, root/path protection, unsafe IDs, write failures, concurrent destination
+creation, retrying a failed first save, and a blocked rollback's recovery path.
+These checks use isolated fixture folders, not the user's installed packs.
+
+In-game follow-up: edit a saved Pack ID and save it; confirm the folder label
+and pack selection refresh, then disable/enable the pack and craft its recipe.
+The filesystem and registry behavior is tested headlessly; live Unity drawing
+and input behavior remain subject to the smoke checks above.

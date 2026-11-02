@@ -119,7 +119,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             {
                 var original = JsonConvert.DeserializeObject<RecipePackDefinition>(savedSnapshot)!;
                 int index = documents.IndexOf(document);
-                if (index >= 0) documents[index] = new RecipePackDocument(document.Path, original);
+                if (index >= 0) documents[index] = new RecipePackDocument(document.Path, original, document.SourceText);
             }
             else if (document != null) documents.Remove(document);
             pendingChange = null;
@@ -230,6 +230,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             GUILayout.Label("Pack ID");
             document.Pack.packId = GUILayout.TextField(
                 document.Pack.packId ?? "");
+            GUILayout.Label("Saving updates the folder to match Pack ID.");
             GUILayout.Label("Display name");
             document.Pack.displayName = GUILayout.TextField(
                 document.Pack.displayName ?? "");
@@ -646,8 +647,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
 
     private void ValidatePackMetadata(RecipePackDefinition pack)
     {
-        if (string.IsNullOrWhiteSpace(pack.packId))
-            throw new InvalidDataException("Pack ID is required.");
+        RecipePackStore.FolderName(pack.packId); // Validate before changing any files.
         RecipePackDocument? duplicate = documents.FirstOrDefault(value =>
             !ReferenceEquals(value, document) &&
             string.Equals(value.Pack.packId?.Trim(), pack.packId.Trim(), StringComparison.OrdinalIgnoreCase));
@@ -692,7 +692,9 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
         {
             id = "new-recipe-" + suffix++;
         }
-        while (ids.Contains(id));
+        while (ids.Contains(id) ||
+            Directory.Exists(Path.Combine(RecipeRegistry.DefinitionDirectory, RecipePackStore.FolderName(id))) ||
+            File.Exists(Path.Combine(RecipeRegistry.DefinitionDirectory, RecipePackStore.FolderName(id))));
         document.Pack.recipes.Add(NewRecipe(id));
         SelectRecipe(document.Pack.recipes.Count - 1);
         status = "New recipe added to the pack draft.";
