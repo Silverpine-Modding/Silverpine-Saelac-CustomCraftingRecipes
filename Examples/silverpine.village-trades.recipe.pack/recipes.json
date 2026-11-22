@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 2,
+  "packId": "silverpine.village-trades",
+  "displayName": "Village Trades",
+  "enabled": true,
+  "recipes": [
+    {
+      "id": "wooden-spoon", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Branch", "amount": 2 }],
+      "result": "Wooden Spoon", "resultAmount": 3, "workMinutes": 20,
+      "description": "Whittle a set of small spoons from straight branch wood."
+    },
+    {
+      "id": "wooden-bowl", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Branch", "amount": 3 }],
+      "result": "Wooden Bowl", "resultAmount": 4, "workMinutes": 30,
+      "description": "Carve a set of small bowls from the thickest sections of the wood."
+    },
+    {
+      "id": "wooden-plate", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Plank", "amount": 1 }],
+      "result": "Wooden Plate", "resultAmount": 2, "workMinutes": 15,
+      "description": "Shape a plate from a plank offcut."
+    },
+    {
+      "id": "basket", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Branch", "amount": 5 }],
+      "result": "Basket", "workMinutes": 35,
+      "description": "Split supple branches into strips and weave a carrying basket."
+    },
+    {
+      "id": "cast-iron-pot", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Iron Ore", "amount": 1 }, { "item": "Branch", "amount": 2 }],
+      "result": "Cast Iron Pot", "workMinutes": 60,
+      "description": "Cast a small cooking pot and finish its rim."
+    },
+    {
+      "id": "bucket", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Iron Ore", "amount": 2 }, { "item": "Branch", "amount": 2 }],
+      "result": "Bucket", "workMinutes": 40,
+      "description": "Fit a bail and wooden grip to a sheet-metal pail."
+    },
+    {
+      "id": "nails", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Iron Ore", "amount": 3 }],
+      "result": "Nails", "workMinutes": 45,
+      "description": "Make one native handful of nails."
+    },
+    {
+      "id": "candlestick", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Copper Ore", "amount": 2 }, { "item": "Branch", "amount": 2 }],
+      "result": "Candlestick", "workMinutes": 50,
+      "description": "Shape a copper candle cup and foot."
+    },
+    {
+      "id": "silver-necklace", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Silver Ore", "amount": 1 }],
+      "result": "Silver Necklace", "workMinutes": 60,
+      "description": "Draw fine silver links and close them into a necklace."
+    },
+    {
+      "id": "gold-ring", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Gold Ore", "amount": 1 }, { "item": "Copper Ore", "amount": 1 }, { "item": "Branch", "amount": 1 }],
+      "result": "Gold Ring", "workMinutes": 75,
+      "description": "Shape a plain gold band and polish it."
+    },
+    {
+      "id": "gold-necklace", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Gold Ore", "amount": 3 }, { "item": "Branch", "amount": 1 }],
+      "result": "Gold Necklace", "workMinutes": 120,
+      "description": "Form a chain of gold links and fit its clasp."
+    },
+    {
+      "id": "hourglass", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Glass Vial", "amount": 3 }, { "item": "Plank", "amount": 1 }, { "item": "Rock", "amount": 1 }],
+      "result": "Hourglass", "workMinutes": 65,
+      "description": "Grade fine grit and set matched glass bulbs into a wooden frame."
+    },
+    {
+      "id": "portable-oil-lantern", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Lantern Oil", "amount": 1 }, { "item": "Glass Vial", "amount": 2 }, { "item": "Copper Ore", "amount": 1 }, { "item": "Iron Ore", "amount": 1 }],
+      "result": "Portable Oil Lantern", "workMinutes": 80,
+      "description": "Build a glazed lantern around a reservoir and supply its first fill of oil."
+    },
+    {
+      "id": "spool-of-thread", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Branch", "amount": 5 }, { "item": "Burdock Root", "amount": 1 }],
+      "result": "Spool of Thread", "workMinutes": 25,
+      "description": "Twist dried root fibres into coarse thread and wind them onto a wooden bobbin."
+    },
+    {
+      "id": "roll-of-cloth", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Spool of Thread", "amount": 2 }, { "item": "Branch", "amount": 2 }],
+      "result": "Roll of Cloth", "workMinutes": 85,
+      "description": "Weave the thread into a length of plain cloth and roll it on a rod."
+    },
+    {
+      "id": "towel", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Spool of Thread", "amount": 1 }],
+      "result": "Towel", "resultAmount": 2, "workMinutes": 45,
+      "description": "Weave a small absorbent towel from a spool of thread."
+    },
+    {
+      "id": "linen-shirt", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Roll of Cloth", "amount": 1 }],
+      "result": "Linen Shirt", "resultAmount": 4, "workMinutes": 150,
+      "description": "Cut a simple shirt, using threads from the selvage for its seams."
+    },
+    {
+      "id": "linen-pants", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Roll of Cloth", "amount": 1 }, { "item": "Spool of Thread", "amount": 1 }],
+      "result": "Linen Pants", "resultAmount": 5, "workMinutes": 180,
+      "description": "Cut a pair of trousers and stitch a reinforced waistband."
+    },
+    {
+      "id": "linen-robe", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Roll of Cloth", "amount": 1 }, { "item": "Branch", "amount": 1 }],
+      "result": "Linen Robe", "resultAmount": 4, "workMinutes": 180,
+      "description": "Use a wooden pattern rod to cut long panels and braid ties from the selvage."
+    },
+    {
+      "id": "gambeson", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Roll of Cloth", "amount": 2 }, { "item": "Branch", "amount": 2 }],
+      "result": "Gambeson", "resultAmount": 3, "workMinutes": 200,
+      "description": "Use wooden quilting frames to stitch layered, padded jackets."
+    },
+    {
+      "id": "winter-coat", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Roll of Cloth", "amount": 2 }, { "item": "Spool of Thread", "amount": 2 }],
+      "result": "Winter Coat", "resultAmount": 4, "workMinutes": 240,
+      "description": "Line a heavy coat and stitch the cuffs closed against the cold."
+    },
+    {
+      "id": "hammer", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Iron Ore", "amount": 3 }, { "item": "Plank", "amount": 1 }, { "item": "Branch", "amount": 1 }],
+      "result": "Hammer", "workMinutes": 55,
+      "description": "Fit a workshop hammer head to a shaped haft."
+    },
+    {
+      "id": "shovel", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Iron Ore", "amount": 2 }, { "item": "Plank", "amount": 2 }],
+      "result": "Shovel", "workMinutes": 60,
+      "description": "Fit a digging blade and footrest to a long wooden handle."
+    },
+    {
+      "id": "hand-saw", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Iron Ore", "amount": 4 }, { "item": "Plank", "amount": 1 }, { "item": "Branch", "amount": 1 }],
+      "result": "Hand Saw", "workMinutes": 70,
+      "description": "Set a toothed saw blade into a cut wooden grip."
+    },
+    {
+      "id": "pickaxe", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Iron Ore", "amount": 3 }, { "item": "Plank", "amount": 1 }, { "item": "Branch", "amount": 2 }],
+      "result": "Pickaxe", "workMinutes": 75,
+      "description": "Fit a miner's pick head to a reinforced haft."
+    },
+    {
+      "id": "sickle", "stations": ["CustomCrafting"],
+      "ingredients": [{ "item": "Iron Ore", "amount": 4 }, { "item": "Branch", "amount": 4 }],
+      "result": "Sickle", "workMinutes": 60,
+      "description": "Make a hooked harvesting tool with a wrapped handle."
+    },
+    {
+      "id": "loaf-of-bread", "stations": ["Cooking"],
+      "ingredients": [{ "item": "Flour", "amount": 1 }],
+      "result": "Loaf of Bread", "resultAmount": 2, "workMinutes": 70,
+      "description": "Bake a plain country loaf."
+    },
+    {
+      "id": "porridge", "stations": ["Cooking"],
+      "ingredients": [{ "item": "Flour", "amount": 1 }, { "item": "Bottle of Milk", "amount": 1 }],
+      "result": "Porridge", "resultAmount": 6, "workMinutes": 45,
+      "description": "Simmer grain meal in milk until thick."
+    },
+    {
+      "id": "vegetable-flatbread", "stations": ["Cooking"],
+      "ingredients": [{ "item": "Flour", "amount": 1 }, { "item": "Wild Garlic", "amount": 1 }, { "item": "Turnip", "amount": 1 }],
+      "result": "Vegetable Flatbread", "resultAmount": 7, "workMinutes": 75,
+      "description": "Bake a thin flatbread topped with sliced turnip and garlic."
+    },
+    {
+      "id": "muffin", "stations": ["Cooking"],
+      "ingredients": [{ "item": "Flour", "amount": 1 }, { "item": "Bottle of Milk", "amount": 1 }, { "item": "Juniper Berries", "amount": 1 }],
+      "result": "Muffin", "resultAmount": 6, "workMinutes": 65,
+      "description": "Fold juniper berries into the batter and bake a muffin."
+    },
+    {
+      "id": "sweetroll", "stations": ["Cooking"],
+      "ingredients": [{ "item": "Flour", "amount": 1 }, { "item": "Vesilberry", "amount": 1 }],
+      "result": "Sweetroll", "resultAmount": 5, "workMinutes": 60,
+      "description": "Swirl a berry reduction through the dough before baking."
+    },
+    {
+      "id": "beef-stew", "stations": ["Cooking"],
+      "ingredients": [{ "item": "Raw Large Animal Meat", "amount": 1 }, { "item": "Winter Chanterelle", "amount": 1 }, { "item": "Wild Garlic", "amount": 1 }],
+      "result": "Beef Stew", "resultAmount": 2, "workMinutes": 45,
+      "description": "Simmer red meat with winter mushrooms and wild garlic."
+    },
+    {
+      "id": "dried-sausage", "stations": ["Cooking"],
+      "ingredients": [{ "item": "Raw Large Animal Meat", "amount": 1 }, { "item": "Juniper Berries", "amount": 1 }],
+      "result": "Dried sausage", "resultAmount": 2, "workMinutes": 90,
+      "description": "Season and smoke a link of sausage for the trail."
+    },
+    {
+      "id": "cup-of-tea", "stations": ["Cooking"],
+      "ingredients": [{ "item": "Rosehips", "amount": 1 }, { "item": "Lavender", "amount": 1 }],
+      "result": "Cup of Tea", "resultAmount": 2, "workMinutes": 20,
+      "description": "Steep the rosehips with a little lavender."
+    },
+    {
+      "id": "lantern-oil", "stations": ["Alchemy"],
+      "ingredients": [{ "item": "Raw Large Animal Meat", "amount": 2 }, { "item": "Glass Vial", "amount": 1 }],
+      "result": "Lantern Oil", "workMinutes": 45,
+      "description": "Render and strain lamp fat into a vial. This is lamp fuel, not a potion."
+    }
+  ]
+}

@@ -8,6 +8,7 @@ namespace SilverpineMods.CustomCraftingRecipes;
 internal static class RecipeRules
 {
     internal const int MaxQuantity = 999;
+    internal const int MaxYield = 12;
 
     internal static bool TryStation(string? text, out CraftingStation station) =>
         Enum.TryParse(text?.Trim(), true, out station) &&
@@ -18,8 +19,22 @@ internal static class RecipeRules
         List<string> errors = new();
         if (string.IsNullOrWhiteSpace(recipe.id)) errors.Add("Recipe ID is required.");
         if (string.IsNullOrWhiteSpace(recipe.result)) errors.Add("A result item is required.");
+        if (recipe.resultAmount < 1 || recipe.resultAmount > MaxYield)
+            errors.Add($"Result quantity must be between 1 and {MaxYield}.");
         if (recipe.workMinutes < 1 || recipe.workMinutes > 1440)
             errors.Add("Work time must be between 1 and 1440 minutes.");
+        if (recipe.skillRequirements != null)
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var requirement in recipe.skillRequirements)
+            {
+                string skillId = requirement?.skill?.Trim() ?? "";
+                if (!CraftingApi.ValidSkillId(skillId))
+                    errors.Add("Each skill requirement needs a skill ID (letters, digits, dot, colon, dash or underscore).");
+                else if (!ids.Add(skillId)) errors.Add($"Duplicate skill requirement: {skillId}.");
+                if (requirement != null && requirement.minLevel < 1) errors.Add("Minimum skill level must be at least 1.");
+            }
+        }
         Dictionary<string, int> counts = new(StringComparer.OrdinalIgnoreCase);
         if (recipe.ingredients == null || recipe.ingredients.Count == 0)
             errors.Add("At least one ingredient is required.");
@@ -52,7 +67,7 @@ internal static class RecipeRules
                     errors.Add($"Unknown station '{value}'.");
                 else if (!station.Fits(counts.Count, total))
                     errors.Add($"{station} permits {station.Capacity()} " +
-                        (station == CraftingStation.CustomCrafting ? "distinct ingredient types." : "total items."));
+                        (station.UsesQuantities() ? "distinct ingredient types." : "total items."));
             }
         }
         return errors;

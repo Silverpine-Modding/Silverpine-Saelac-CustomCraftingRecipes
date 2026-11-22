@@ -32,6 +32,57 @@ combination-item crafting are not changed.
 Requires Modding Tools 1.3.0 or newer. Newer ModTools versions also provide
 coordinated Escape handling for the editor's picker and unsaved-change prompt.
 
+## Recipe level requirements (1.7.0)
+
+In **Custom Recipe Editor → Add Skill Requirement**, enter a skill ID published
+by a skills mod and a minimum level. For example, a pickaxe requiring
+Blacksmithing 5 is visible but locked at level 4, and craftable at level 5.
+Multiple requirements must all be met. The editor saves these packs as schema
+3; older packs and recipes without requirements keep their behavior.
+Skills mods can also lock individual recipes in existing packs without editing
+them. See the [API and examples](CRAFTING-API.md#level-gated-recipes).
+
+## Village Foundry and crafting API (1.6.0)
+
+[Village Foundry guide](Examples/silverpine.village-foundry.recipe.pack/GUIDE.md): a placeable smelting furnace
+turns wood into charcoal and the four native ores into ingots. The existing
+Metalworking Bench gains a second action, **Blacksmithing**, alongside **Repair**.
+Install both Foundry packs for this content. Either station accepts recipes from
+any enabled recipe pack, including recipes made in **Mod Tools → Custom Recipe Editor**.
+
+[Crafting API](CRAFTING-API.md) lets other mods roll bonus yield, upgrade native
+quality, increase durability/value, and award XP after successful delivery.
+No bonuses or progression changes are enabled merely by installing this plugin.
+
+## Optional packs: Village Workshops (1.5.0)
+
+[Village Workshops](Examples/silverpine.village-workshops.recipe.pack/GUIDE.md) adds three placeable
+specialist stations, 26 recipes, and a source of the starter bench through
+Aldric's restocks. Install both the item pack and the recipe
+pack; the furniture uses Custom Item Loader (tested with 3.0.9). Existing
+workbenches, including Repair and Mr Bones, keep their original behavior.
+
+## Optional pack: Village Trades (1.4.0)
+
+[Village Trades recipe and price guide](Examples/silverpine.village-trades.recipe.pack/GUIDE.md)
+lists 35 native-item recipes: 26 at the CustomCrafting bench, eight at Cooking
+and one at Alchemy. Copy the entire example pack folder into
+`BepInEx/config/CustomCraftingRecipes/` alongside your existing packs. If
+using the combined plugin + pack ZIP, extract it at the game root instead.
+Restart the game after updating the DLL.
+
+At the CustomCrafting bench, **Browse recipes** shows recipes from enabled
+packs. Search by output, ingredient, or pack ID and choose a recipe to fill
+the slots. You can review or change the selection before pressing Craft.
+
+Use `"schemaVersion": 2` for recipes with a batch yield. Set
+`"resultAmount": 2`, for example, to get two independent units of the result
+for one set of ingredients and one work period. The editor supports 1–12
+units and upgrades the pack schema on save when necessary; schema 1 recipes
+still yield one by default. Versions through 1.3.1 skip schema 2 packs.
+Capacity checks include the whole batch. Items with special pickup/removal
+effects, such as currency, are restricted to single outputs.
+
 ## Recipe file
 
 On first launch, the plugin creates a starter pack at:
@@ -82,8 +133,11 @@ If the old single-file `CustomCraftingRecipes/recipes.json` layout is found and
 no pack folders exist, it is automatically copied into
 `Migrated.recipe.pack/recipes.json`; the legacy file is retained but ignored.
 
-`stations` may contain `CustomCrafting`, `Alchemy`, and/or `Cooking`.
-CustomCrafting accepts up to ten distinct ingredient types and lets each type
+`stations` may contain `CustomCrafting`, `Alchemy`, `Cooking`, `Joinery`,
+`Tailoring`, `Baking`, `Blacksmithing`, and/or `Smelting`. Joinery, Tailoring
+and Baking use Village Workshops furniture; Blacksmithing uses the native
+Metalworking Bench, and Smelting uses the Village Foundry furnace. Each specialist and CustomCrafting accept up to
+ten distinct ingredient types and let each type
 have its own quantity. Alchemy and Cooking retain one item per UI field, so
 their total ingredient amounts may not exceed four and three, respectively.
 

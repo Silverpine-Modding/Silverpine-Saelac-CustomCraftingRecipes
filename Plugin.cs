@@ -27,7 +27,7 @@ public sealed class Plugin : BaseUnityPlugin
     public const string PluginGuid =
         "renegadex.silverpine.customcraftingrecipes";
     public const string PluginName = "Custom Crafting Recipes";
-    public const string PluginVersion = "1.3.1";
+    public const string PluginVersion = "1.7.0";
 
     internal static ManualLogSource Log { get; private set; } = null!;
 
@@ -60,7 +60,9 @@ public sealed class Plugin : BaseUnityPlugin
         Log.LogInfo(
             "Registered Custom Recipe Editor with the Modding Tools main menu.");
 
-        new Harmony(PluginGuid).PatchAll();
+        var harmony = new Harmony(PluginGuid);
+        harmony.PatchAll();
+        WorkshopFurniture.Install(harmony);
         Log.LogInfo($"{PluginName} {PluginVersion} loaded with " +
                     $"{RecipeRegistry.Count} recipe(s).");
     }
@@ -82,11 +84,16 @@ public sealed class Plugin : BaseUnityPlugin
 
 }
 
-internal enum CraftingStation
+public enum CraftingStation
 {
     CustomCrafting,
     Alchemy,
-    Cooking
+    Cooking,
+    Joinery,
+    Tailoring,
+    Baking,
+    Blacksmithing,
+    Smelting
 }
 
 internal static class CraftingStationInfo
@@ -94,17 +101,29 @@ internal static class CraftingStationInfo
     internal static int Capacity(this CraftingStation station) =>
         station switch
         {
-            CraftingStation.CustomCrafting => 10,
+            CraftingStation.CustomCrafting or CraftingStation.Joinery or CraftingStation.Tailoring or CraftingStation.Baking or CraftingStation.Blacksmithing or CraftingStation.Smelting => 10,
             CraftingStation.Alchemy => 4,
             CraftingStation.Cooking => 3,
             _ => 0
         };
 
+    internal static bool UsesQuantities(this CraftingStation station) =>
+        station is CraftingStation.CustomCrafting or CraftingStation.Joinery or CraftingStation.Tailoring or CraftingStation.Baking or CraftingStation.Blacksmithing or CraftingStation.Smelting;
+
+    internal static string Label(this CraftingStation station) => station switch {
+        CraftingStation.CustomCrafting => "Custom Crafting",
+        CraftingStation.Joinery => "Joiner's Bench",
+        CraftingStation.Tailoring => "Tailor's Frame",
+        CraftingStation.Baking => "Village Bake Oven",
+        CraftingStation.Smelting => "Smelting Furnace",
+        _ => station.ToString()
+    };
+
     internal static bool Fits(
         this CraftingStation station,
         int distinctIngredients,
         int totalItems) =>
-        distinctIngredients > 0 && totalItems > 0 && (station == CraftingStation.CustomCrafting
+        distinctIngredients > 0 && totalItems > 0 && (station.UsesQuantities()
             ? distinctIngredients <= station.Capacity()
             : totalItems <= station.Capacity());
 }
@@ -325,6 +344,16 @@ internal static class RecipeRegistry
     private static string definitionDirectory = "";
 
     internal static int Count => recipes.Count;
+    internal static bool HasStation(CraftingStation station) => IngredientNames[station].Count != 0;
+    internal static List<CompiledRecipe> BrowseBenchRecipes(string search, CraftingStation station = CraftingStation.CustomCrafting)
+    {
+        string query = search.Trim();
+        bool Has(string text) => text.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
+        return recipes.Where(r => r.Stations.Contains(station) &&
+                (Has(r.ResultName) || Has(r.Id) || r.RequiredItems.Keys.Any(Has)))
+            .OrderBy(r => r.ResultName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.Id, StringComparer.OrdinalIgnoreCase).ToList();
+    }
     internal static int Revision { get; private set; }
     internal static int PackCount { get; private set; }
     internal static int EnabledPackCount { get; private set; }
@@ -455,8 +484,9 @@ internal static class RecipeRegistry
     internal static void SavePack(RecipePackDocument document)
     {
         RecipePackDefinition pack = document.Pack;
-        pack.schemaVersion = 1;
         pack.recipes ??= new List<RecipeDefinition>();
+        if (pack.recipes.Any(r => r?.skillRequirements?.Count > 0)) pack.schemaVersion = Math.Max(3, pack.schemaVersion);
+        else if (pack.recipes.Any(r => r != null && r.resultAmount != 1)) pack.schemaVersion = Math.Max(2, pack.schemaVersion);
         pack.packId = pack.packId?.Trim() ?? "";
         string json = JsonConvert.SerializeObject(pack, Formatting.Indented) + Environment.NewLine;
         RecipePackStore.Save(definitionDirectory, document, json);
@@ -473,11 +503,15 @@ internal static class RecipeRegistry
                 JsonSettings);
         if (pack == null)
             throw new InvalidDataException("The recipe pack is empty.");
-        if (pack.schemaVersion != 1)
+        if (pack.schemaVersion < 1 || pack.schemaVersion > 3)
             throw new InvalidDataException($"Unsupported recipe schema version {pack.schemaVersion}.");
         pack.packId = pack.packId?.Trim() ?? "";
         pack.displayName ??= "";
         pack.recipes ??= new List<RecipeDefinition>();
+        if (pack.schemaVersion < 3 && pack.recipes.Any(r => r?.skillRequirements?.Count > 0))
+            throw new InvalidDataException("Skill requirements require schemaVersion 3.");
+        if (pack.schemaVersion == 1 && pack.recipes.Any(r => r != null && r.resultAmount != 1))
+            throw new InvalidDataException("Batch yields require schemaVersion 2.");
         return pack;
     }
 
@@ -730,7 +764,7 @@ internal static class RecipeRegistry
         }
         if (stations.Count == 0) return false;
         compiled = new CompiledRecipe(id, required, stations, definition.result.Trim(),
-            definition.workMinutes, definition.description?.Trim() ?? "");
+            definition.workMinutes, definition.description?.Trim() ?? "", definition.resultAmount, definition.skillRequirements);
         return true;
     }
 
@@ -763,12 +797,15 @@ internal sealed class CompiledRecipe
         HashSet<CraftingStation> stations,
         string resultName,
         int workMinutes,
-        string description)
+        string description, int resultAmount = 1, List<SkillRequirementDefinition>? skillRequirements = null)
     {
         Id = id;
         RequiredItems = requiredItems;
         Stations = stations;
         ResultName = resultName;
+        AccessResultName = resultName.Substring(resultName.IndexOf('|') + 1);
+        Skills = skillRequirements?.Select(s => (s.skill.Trim(), s.minLevel)).ToArray() ?? Array.Empty<(string,int)>();
+        ResultAmount = resultAmount;
         WorkMinutes = workMinutes;
         Description = description;
         IngredientCount = requiredItems.Values.Sum();
@@ -778,6 +815,9 @@ internal sealed class CompiledRecipe
     internal Dictionary<string, int> RequiredItems { get; }
     internal HashSet<CraftingStation> Stations { get; }
     internal string ResultName { get; }
+    internal string AccessResultName { get; }
+    internal (string Id,int Level)[] Skills { get; }
+    internal int ResultAmount { get; }
     internal int WorkMinutes { get; }
     internal string Description { get; }
     internal int IngredientCount { get; }
@@ -850,7 +890,11 @@ internal sealed class RecipeDefinition
         nameof(CraftingStation.CustomCrafting)
     };
     public List<IngredientDefinition> ingredients = new();
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public List<SkillRequirementDefinition>? skillRequirements;
     public string result = "";
+    [System.ComponentModel.DefaultValue(1), JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public int resultAmount = 1;
     public int workMinutes = 10;
     public string description = "";
 }
@@ -860,4 +904,11 @@ internal sealed class IngredientDefinition
 {
     public string item = "";
     public int amount = 1;
+}
+
+[Serializable]
+internal sealed class SkillRequirementDefinition
+{
+    public string skill = "";
+    public int minLevel;
 }

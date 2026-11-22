@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 2,
+  "packId": "silverpine.village-foundry",
+  "displayName": "Village Foundry",
+  "enabled": true,
+  "recipes": [
+    {
+      "id": "build-furnace",
+      "stations": ["CustomCrafting", "Joinery", "Blacksmithing"],
+      "ingredients": [
+        { "item": "Rock", "amount": 12 },
+        { "item": "Plank", "amount": 3 },
+        { "item": "Nails", "amount": 2 },
+        { "item": "Iron Ore", "amount": 3 }
+      ],
+      "result": "Smelting Furnace",
+      "workMinutes": 175,
+      "description": "Build a stone-lined charcoal furnace and fit its base and bands."
+    },
+    {
+      "id": "build-metalworking-bench",
+      "stations": ["CustomCrafting", "Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 8 },
+        { "item": "Nails", "amount": 2 },
+        { "item": "Iron Ingot", "amount": 2 }
+      ],
+      "result": "Metalworking Bench",
+      "workMinutes": 195,
+      "description": "Mount an iron working surface on a stout timber bench."
+    },
+    {
+      "id": "char-wood",
+      "stations": ["Smelting"],
+      "ingredients": [
+        { "item": "Branch", "amount": 7 }
+      ],
+      "result": "Charcoal",
+      "resultAmount": 3,
+      "workMinutes": 120,
+      "description": "Bank the wood to make three charges of charcoal."
+    },
+    {
+      "id": "smelt-iron",
+      "stations": ["Smelting"],
+      "ingredients": [
+        { "item": "Iron Ore", "amount": 2 },
+        { "item": "Charcoal", "amount": 1 }
+      ],
+      "result": "Iron Ingot",
+      "workMinutes": 90,
+      "description": "Refine a charge of iron ore into one workshop ingot."
+    },
+    {
+      "id": "smelt-copper",
+      "stations": ["Smelting"],
+      "ingredients": [
+        { "item": "Copper Ore", "amount": 2 },
+        { "item": "Charcoal", "amount": 1 }
+      ],
+      "result": "Copper Ingot",
+      "workMinutes": 75,
+      "description": "Refine a charge of copper ore into one workshop ingot."
+    },
+    {
+      "id": "smelt-silver",
+      "stations": ["Smelting"],
+      "ingredients": [
+        { "item": "Silver Ore", "amount": 2 },
+        { "item": "Charcoal", "amount": 1 }
+      ],
+      "result": "Silver Ingot",
+      "workMinutes": 95,
+      "description": "Refine a charge of silver ore into one workshop ingot."
+    },
+    {
+      "id": "smelt-gold",
+      "stations": ["Smelting"],
+      "ingredients": [
+        { "item": "Gold Ore", "amount": 2 },
+        { "item": "Charcoal", "amount": 1 }
+      ],
+      "result": "Gold Ingot",
+      "workMinutes": 105,
+      "description": "Refine a charge of gold ore into one workshop ingot."
+    },
+    {
+      "id": "forge-nails",
+      "stations": ["Blacksmithing"],
+      "ingredients": [
+        { "item": "Iron Ingot", "amount": 1 },
+        { "item": "Charcoal", "amount": 1 }
+      ],
+      "result": "Nails",
+      "resultAmount": 2,
+      "workMinutes": 55,
+      "description": "Turn bar stock into two handfuls of fittings."
+    },
+    {
+      "id": "forge-hammer",
+      "stations": ["Blacksmithing"],
+      "ingredients": [
+        { "item": "Iron Ingot", "amount": 1 },
+        { "item": "Plank", "amount": 1 },
+        { "item": "Branch", "amount": 1 }
+      ],
+      "result": "Hammer",
+      "workMinutes": 80,
+      "description": "Fit an iron hammer head to a wedged wooden handle."
+    },
+    {
+      "id": "forge-shovel",
+      "stations": ["Blacksmithing"],
+      "ingredients": [
+        { "item": "Iron Ingot", "amount": 1 },
+        { "item": "Plank", "amount": 1 }
+      ],
+      "result": "Shovel",
+      "workMinutes": 80,
+      "description": "Fit an iron spade to a long wooden shaft."
+    },
+    {
+      "id": "forge-pickaxe",
+      "stations": ["Blacksmithing"],
+      "ingredients": [
+        { "item": "Iron Ingot", "amount": 1 },
+        { "item": "Plank", "amount": 1 },
+        { "item": "Branch", "amount": 2 }
+      ],
+      "result": "Pickaxe",
+      "workMinutes": 100,
+      "description": "Finish a miner's pick and fit a reinforced haft."
+    },
+    {
+      "id": "forge-sickle",
+      "stations": ["Blacksmithing"],
+      "ingredients": [
+        { "item": "Iron Ingot", "amount": 1 },
+        { "item": "Branch", "amount": 2 },
+        { "item": "Charcoal", "amount": 1 }
+      ],
+      "result": "Sickle",
+      "workMinutes": 70,
+      "description": "Finish a field sickle with a short wooden grip."
+    },
+    {
+      "id": "forge-saw",
+      "stations": ["Blacksmithing"],
+      "ingredients": [
+        { "item": "Iron Ingot", "amount": 1 },
+        { "item": "Plank", "amount": 1 },
+        { "item": "Charcoal", "amount": 1 }
+      ],
+      "result": "Hand Saw",
+      "workMinutes": 95,
+      "description": "Finish a carpenter's saw and fit its handle."
+    },
+    {
+      "id": "forge-axe",
+      "stations": ["Blacksmithing"],
+      "ingredients": [
+        { "item": "Iron Ingot", "amount": 1 },
+        { "item": "Plank", "amount": 1 },
+        { "item": "Branch", "amount": 1 },
+        { "item": "Rock", "amount": 1 }
+      ],
+      "result": "Axe",
+      "workMinutes": 90,
+      "description": "Finish a woodcutter's axe for the timber yard."
+    },
+    {
+      "id": "copper-candlesticks",
+      "stations": ["Blacksmithing"],
+      "ingredients": [
+        { "item": "Copper Ingot", "amount": 1 },
+        { "item": "Charcoal", "amount": 1 },
+        { "item": "Branch", "amount": 2 }
+      ],
+      "result": "Candlestick",
+      "resultAmount": 2,
+      "workMinutes": 75,
+      "description": "Form a matched pair of candlesticks."
+    },
+    {
+      "id": "silver-chains",
+      "stations": ["Blacksmithing"],
+      "ingredients": [
+        { "item": "Silver Ingot", "amount": 1 },
+        { "item": "Charcoal", "amount": 1 }
+      ],
+      "result": "Silver Necklace",
+      "resultAmount": 3,
+      "workMinutes": 150,
+      "description": "Work fine silver stock into three light chains."
+    },
+    {
+      "id": "gold-bands",
+      "stations": ["Blacksmithing"],
+      "ingredients": [
+        { "item": "Gold Ingot", "amount": 1 },
+        { "item": "Charcoal", "amount": 1 }
+      ],
+      "result": "Gold Ring",
+      "resultAmount": 2,
+      "workMinutes": 120,
+      "description": "Finish and polish two plain gold bands."
+    },
+    {
+      "id": "gold-chains",
+      "stations": ["Blacksmithing"],
+      "ingredients": [
+        { "item": "Gold Ingot", "amount": 2 },
+        { "item": "Charcoal", "amount": 2 }
+      ],
+      "result": "Gold Necklace",
+      "resultAmount": 2,
+      "workMinutes": 200,
+      "description": "Form two heavier chains and fit their clasps."
+    }
+  ]
+}

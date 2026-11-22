@@ -7,13 +7,22 @@ namespace SilverpineMods.CustomCraftingRecipes;
 
 internal static class CraftExecution
 {
-    internal static void Start(Player player, CraftingUIData data, List<Item> ingredients, ResultData result, Action close)
+    internal static bool CanStart(Player player, CraftingStation station, ResultData result, Inventory inventory,
+        IReadOnlyList<Item> ingredients, out string error)
+    {
+        string? denied = CraftingApi.LockReason(player, station, result);
+        if (denied != null) { error = denied; return false; }
+        return CraftTransaction.CanComplete(inventory, ingredients, BatchResult.Units(result), out error);
+    }
+
+    internal static void Start(Player player, CraftingUIData data, CraftingStation station, List<Item> ingredients, ResultData result, Action close)
     {
         Inventory inventory = player.worldInventory.inventory;
         if (result.resultItem == null) return;
-        if (!CraftTransaction.CanComplete(inventory, ingredients, result.resultItem, out string validationError))
+        var units = BatchResult.Units(result);
+        if (!CanStart(player, station, result, inventory, ingredients, out string validationError))
         { UpperNotificationUI.Instance?.OneOff(validationError); return; }
-        bool finished = false;
+        bool finished = false, settling = false;
         void Finish()
         {
             if (finished) return;
@@ -27,19 +36,24 @@ internal static class CraftExecution
             data.startCallback?.Invoke();
             player.StartLongInteraction(() =>
             {
+                if (finished || settling) return; // Interrupted or duplicate/reentrant success callback.
+                settling = true;
                 try
                 {
                     if (player == null || Player.Instance != player || player.worldInventory.inventory != inventory) return;
-                    if (!CraftTransaction.TryComplete(inventory, ingredients, result.resultItem, out string error))
+                    if (!CraftingApi.TryDeliver(player, station, result, inventory, ingredients, out var delivered, out string error))
                     {
                         Plugin.Log.LogWarning(error);
                         UpperNotificationUI.Instance?.OneOff(error);
                         return;
                     }
-                    AnimationHelper.Instance.SpawnItemFloatingText(result.resultItem);
-                    if (result.resultItem.itemSound != ItemSound.None)
+                    Item first = delivered[0];
+                    if (delivered.Count > units.Count)
+                        UpperNotificationUI.Instance?.OneOff($"Crafted {delivered.Count} × {first.name} (+{delivered.Count - units.Count} bonus).");
+                    AnimationHelper.Instance.SpawnItemFloatingText(first);
+                    if (first.itemSound != ItemSound.None)
                     {
-                        AudioClip clip = Resources.Load<AudioClip>("SFX/ItemSounds/sound_item_" + result.resultItem.itemSound.ToString().ToLowerInvariant());
+                        AudioClip clip = Resources.Load<AudioClip>("SFX/ItemSounds/sound_item_" + first.itemSound.ToString().ToLowerInvariant());
                         if (clip != null) AudioPlayer.Instance.PlayAudioAtPosition(clip, 1f, player.transform.GetVector2IntPosition());
                     }
                 }

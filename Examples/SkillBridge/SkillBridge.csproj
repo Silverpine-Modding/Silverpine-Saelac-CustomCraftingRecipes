@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <GameDir Condition="'$(GameDir)' == '' and Exists('$(MSBuildProjectDirectory)\..\..\CustomCraftingRecipes.csproj')">$(MSBuildProjectDirectory)\..\..\..\..</GameDir>
+    <GameDir Condition="'$(GameDir)' == ''">$(MSBuildProjectDirectory)\..\..</GameDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\CustomCraftingRecipes.csproj" Condition="Exists('$(MSBuildProjectDirectory)\..\..\CustomCraftingRecipes.csproj')" />
+    <Reference Include="CustomCraftingRecipes" HintPath="$(GameDir)\BepInEx\plugins\CustomCraftingRecipes\CustomCraftingRecipes.dll" Private="false" Condition="!Exists('$(MSBuildProjectDirectory)\..\..\CustomCraftingRecipes.csproj')" />
+    <Reference Include="Assembly-CSharp" HintPath="$(GameDir)\Silverpine_Data\Managed\Assembly-CSharp.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(GameDir)\Silverpine_Data\Managed\UnityEngine.CoreModule.dll" Private="false" />
+  </ItemGroup>
+</Project>

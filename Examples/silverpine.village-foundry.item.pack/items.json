@@ -1,0 +1,87 @@
+{
+  "packId": "silverpine.village-foundry",
+  "enabled": true,
+  "items": [
+    {
+      "id": "smelting-furnace",
+      "name": "Smelting Furnace",
+      "description": "A charcoal-fired shaft furnace. Charge wood into charcoal or refine native ores into workshop ingots.",
+      "image": "art/furnace.png",
+      "value": 55,
+      "bulk": 22,
+      "category": "Furniture",
+      "sound": "Rock",
+      "market": "Exclude",
+      "placement": "GeneratedPrefab",
+      "workbench": "CustomCrafting",
+      "placementScale": 1,
+      "furniture": {
+        "blocksMovement": true,
+        "turnable": false,
+        "allowWallPlacement": false,
+        "snappingOffset": 0
+      }
+    },
+    {
+      "id": "charcoal",
+      "name": "Charcoal",
+      "description": "A light, porous fuel made from wood. One charge fires a small smelting batch.",
+      "image": "art/charcoal.png",
+      "value": 3,
+      "bulk": 0.5,
+      "category": "Material",
+      "sound": "Wood",
+      "market": "Exclude",
+      "clone": "Branch",
+      "componentOverrides": {
+        "fuel": {
+          "minutes": 90
+        }
+      }
+    },
+    {
+      "id": "iron-ingot",
+      "name": "Iron Ingot",
+      "description": "Refined iron stock for the metalworking bench.",
+      "image": "art/iron.png",
+      "value": 11,
+      "bulk": 1.5,
+      "category": "Material",
+      "sound": "Metal",
+      "market": "Exclude"
+    },
+    {
+      "id": "copper-ingot",
+      "name": "Copper Ingot",
+      "description": "Refined copper stock for the metalworking bench.",
+      "image": "art/copper.png",
+      "value": 15,
+      "bulk": 1.5,
+      "category": "Material",
+      "sound": "Metal",
+      "market": "Exclude"
+    },
+    {
+      "id": "silver-ingot",
+      "name": "Silver Ingot",
+      "description": "Refined silver stock for the metalworking bench.",
+      "image": "art/silver.png",
+      "value": 22,
+      "bulk": 1.5,
+      "category": "Material",
+      "sound": "Metal",
+      "market": "Exclude"
+    },
+    {
+      "id": "gold-ingot",
+      "name": "Gold Ingot",
+      "description": "Refined gold stock for the metalworking bench.",
+      "image": "art/gold.png",
+      "value": 27,
+      "bulk": 1.5,
+      "category": "Material",
+      "sound": "Metal",
+      "market": "Exclude"
+    }
+  ]
+}

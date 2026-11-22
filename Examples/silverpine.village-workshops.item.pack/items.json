@@ -1,0 +1,66 @@
+{
+  "packId": "silverpine.village-workshops",
+  "enabled": true,
+  "items": [
+    {
+      "id": "joiners-bench",
+      "name": "Joiner's Bench",
+      "description": "A plank-topped joinery bench with a face vise. Make household furniture, or fit out the other two workshops.",
+      "image": "art/joiners-bench.png",
+      "category": "Furniture",
+      "sound": "Wood",
+      "value": 65,
+      "bulk": 18,
+      "market": "Exclude",
+      "placement": "GeneratedPrefab",
+      "placementScale": 1,
+      "workbench": "CustomCrafting",
+      "furniture": {
+        "blocksMovement": true,
+        "turnable": false,
+        "allowWallPlacement": false,
+        "snappingOffset": 0
+      }
+    },
+    {
+      "id": "tailors-frame",
+      "name": "Tailor's Frame",
+      "description": "A low, sloped weaving frame for rugs, scarves and upholstery.",
+      "image": "art/tailors-frame.png",
+      "category": "Furniture",
+      "sound": "Wood",
+      "value": 70,
+      "bulk": 14,
+      "market": "Exclude",
+      "placement": "GeneratedPrefab",
+      "placementScale": 1,
+      "workbench": "CustomCrafting",
+      "furniture": {
+        "blocksMovement": true,
+        "turnable": false,
+        "allowWallPlacement": false,
+        "snappingOffset": 0
+      }
+    },
+    {
+      "id": "bake-oven",
+      "name": "Village Bake Oven",
+      "description": "A banked masonry bake oven for bread and small pastries. Each recipe includes its own fuel.",
+      "image": "art/bake-oven.png",
+      "category": "Furniture",
+      "sound": "Rock",
+      "value": 75,
+      "bulk": 26,
+      "market": "Exclude",
+      "placement": "GeneratedPrefab",
+      "placementScale": 1,
+      "workbench": "CustomCrafting",
+      "furniture": {
+        "blocksMovement": true,
+        "turnable": false,
+        "allowWallPlacement": false,
+        "snappingOffset": 0
+      }
+    }
+  ]
+}

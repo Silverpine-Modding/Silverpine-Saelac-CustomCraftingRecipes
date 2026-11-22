@@ -52,6 +52,11 @@ Check(other.inventory != null && other.inventory.ContainsItem(other) && other.Ad
 Check(!ReferenceEquals(preview, other.inventory), "unrelated previews do not accumulate together");
 AuditChecks.Run(Check);
 PackRenameChecks.Run(Check);
+VillageTradesChecks.Run(Check);
+WorkshopChecks.Run(Check);
+FoundryChecks.Run(Check);
+SkillsChecks.Run(Check);
+RecipeAccessChecks.Run(Check);
 Console.WriteLine($"{passed} regression checks passed.");
 
 sealed class ObservedItem : Item

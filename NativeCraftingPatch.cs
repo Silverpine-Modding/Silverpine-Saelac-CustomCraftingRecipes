@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using HarmonyLib;
 using TMPro;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace SilverpineMods.CustomCraftingRecipes;
@@ -15,6 +16,8 @@ internal static class NativeCraftingPatch
     private static bool Prefix(CraftingUI __instance, CraftingUIData ___currentCraftingUIData,
         TextMeshProUGUI ___resultTextMesh, UnityEngine.GameObject ___resultField, Button ___craftButton)
     {
+        var access = __instance.GetComponent<NativeRecipeAccess>();
+        access?.ClearPreview();
         CraftingUIData data = ___currentCraftingUIData;
         if (data is not CookingCraftingUIData && data is not AlchemyCraftingUIData &&
             data?.GetType().FullName != "SilverpineMods.CustomItemLoader.CustomItemCookingCraftingUIData") return true;
@@ -34,10 +37,53 @@ internal static class NativeCraftingPatch
         var sprite = result.resultItem.Sprite;
         foreach (Image image in images.Take(2)) image.sprite = sprite;
         var ingredients = items.Where(item => item != null).ToList();
-        bool canCraft = CraftTransaction.CanComplete(player.worldInventory.inventory, ingredients, result.resultItem, out string error);
-        ___craftButton.interactable = canCraft;
-        if (!canCraft) ___resultTextMesh.text += "\n" + error;
-        ___craftButton.onClick.AddListener(() => CraftExecution.Start(player, data, ingredients, result, __instance.Close));
+        bool canCraft = CraftTransaction.CanComplete(player.worldInventory.inventory, ingredients, BatchResult.Units(result), out string error);
+        var station = data is AlchemyCraftingUIData ? CraftingStation.Alchemy : CraftingStation.Cooking;
+        if (access == null) access = __instance.gameObject.AddComponent<NativeRecipeAccess>();
+        access.SetPreview(player,station,result,___craftButton,___resultTextMesh,canCraft,error);
+        ___craftButton.onClick.AddListener(() => CraftExecution.Start(player, data, station, ingredients, result, __instance.Close));
         return false;
     }
+}
+
+// The native UI polls only when a selection changes. Refresh just the displayed
+// lock, not GetResultData (which could roll a new potion or replace listeners).
+internal sealed class NativeRecipeAccess : MonoBehaviour
+{
+    private Player? player;
+    private CraftingStation station;
+    private ResultData? result;
+    private Button? button;
+    private TextMeshProUGUI? text;
+    private bool hasCapacity;
+    private string capacityError = "";
+    private string? previousLock;
+    private int accessRevision, packRevision;
+    private float nextPoll;
+
+    internal void SetPreview(Player owner, CraftingStation at, ResultData preview, Button craft, TextMeshProUGUI label, bool canFit, string error)
+    {
+        player = owner; station = at; result = preview; button = craft; text = label;
+        hasCapacity = canFit; capacityError = error;
+        RefreshLock(true);
+    }
+
+    private void Update()
+    {
+        if (result != null && (CraftingApi.AccessRevision != accessRevision || RecipeRegistry.Revision != packRevision ||
+            Time.unscaledTime >= nextPoll)) RefreshLock(false);
+    }
+
+    private void RefreshLock(bool force)
+    {
+        accessRevision = CraftingApi.AccessRevision; packRevision = RecipeRegistry.Revision; nextPoll = Time.unscaledTime + 0.5f;
+        string? reason = CraftingApi.LockReason(player!,station,result!);
+        if (!force && reason == previousLock) return;
+        previousLock = reason;
+        button!.interactable = hasCapacity && reason == null;
+        text!.text = result!.resultText + (reason != null ? "\nLocked: " + reason : hasCapacity ? "" : "\n" + capacityError);
+    }
+
+    internal void ClearPreview() { result = null; player = null; button = null; text = null; previousLock = null; }
+    private void OnDisable() => ClearPreview();
 }

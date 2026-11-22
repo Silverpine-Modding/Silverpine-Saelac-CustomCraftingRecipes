@@ -8,6 +8,14 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\CustomCraftingRecipes.csproj" />
+    <None Include="..\Examples\silverpine.village-trades.recipe.pack\recipes.json" Link="VillageTrades\recipes.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Examples\silverpine.village-workshops.recipe.pack\recipes.json" Link="WorkshopRecipes\recipes.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Examples\silverpine.village-workshops.item.pack\**\*" Link="WorkshopItems\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="WorkshopFurniturePrices.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Examples\silverpine.village-foundry.recipe.pack\recipes.json" Link="FoundryRecipes\recipes.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Examples\silverpine.village-foundry.item.pack\**\*" Link="FoundryItems\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="$(GameDir)\BepInEx\plugins\CustomItemLoader\CustomItemLoader.dll" Condition="Exists('$(GameDir)\BepInEx\plugins\CustomItemLoader\CustomItemLoader.dll')" Link="WorkshopIntegration\CustomItemLoader.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Reference Include="Mono.Cecil"><HintPath>$(GameDir)\BepInEx\core\Mono.Cecil.dll</HintPath></Reference>
     <Reference Include="BepInEx"><HintPath>$(GameDir)\BepInEx\core\BepInEx.dll</HintPath></Reference>
     <Reference Include="0Harmony"><HintPath>$(GameDir)\BepInEx\core\0Harmony.dll</HintPath></Reference>
     <Reference Include="Newtonsoft.Json"><HintPath>$(GameDir)\BepInEx\plugins\ModdingTools\Newtonsoft.Json.dll</HintPath></Reference>

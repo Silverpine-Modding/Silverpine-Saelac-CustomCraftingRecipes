@@ -315,6 +315,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
         GUILayout.Label("Qualified ID: " + qualifiedId);
 
         GUILayout.Space(8);
+        DrawSkillRequirements(recipe);
         GUILayout.Label("Crafting stations");
         long ingredientTotal = IngredientTotal(recipe);
         int distinctIngredients = DistinctIngredientCount(recipe);
@@ -329,8 +330,8 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             GUI.enabled = fits || selected;
             bool next = GUILayout.Toggle(
                 selected,
-                station == CraftingStation.CustomCrafting
-                    ? $"{stationName} ({station.Capacity()} quantity slots)"
+                station.UsesQuantities()
+                    ? $"{station.Label()} ({station.Capacity()} quantity slots)"
                     : $"{stationName} ({station.Capacity()} slots)");
             GUI.enabled = true;
             if (next && !selected)
@@ -343,7 +344,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             if (!fits)
             {
                 GUILayout.Label(
-                    station == CraftingStation.CustomCrafting
+                    station.UsesQuantities()
                         ? $"Requires {distinctIngredients} distinct ingredients; " +
                           $"{stationName} has {station.Capacity()} quantity slots."
                         : $"Requires {ingredientTotal} total items; {stationName} " +
@@ -404,6 +405,15 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
         GUILayout.Label(
             "The browser includes native and live Custom Item Loader items. " +
             "Quality|Item Name may be entered manually.");
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label($"Result quantity: {recipe.resultAmount}", GUILayout.Width(160));
+        GUI.enabled = recipe.resultAmount != 1;
+        if (GUILayout.Button("−", GUILayout.Width(40))) recipe.resultAmount = (int)Math.Clamp((long)recipe.resultAmount - 1, 1, RecipeRules.MaxYield);
+        GUI.enabled = recipe.resultAmount != RecipeRules.MaxYield;
+        if (GUILayout.Button("+", GUILayout.Width(40))) recipe.resultAmount = (int)Math.Clamp((long)recipe.resultAmount + 1, 1, RecipeRules.MaxYield);
+        GUI.enabled = true;
+        GUILayout.EndHorizontal();
 
         GUILayout.Space(8);
         GUILayout.Label("Work time (in-game minutes, 1–1440)");
@@ -717,6 +727,34 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
         description = ""
     };
 
+    private static void DrawSkillRequirements(RecipeDefinition recipe)
+    {
+        GUILayout.Label("Skill requirements (optional; all must be met)");
+        int remove = -1;
+        var rows = recipe.skillRequirements;
+        for (int i = 0; rows != null && i < rows.Count; i++)
+        {
+            var row = rows[i] ??= new SkillRequirementDefinition();
+            GUILayout.BeginHorizontal(GUI.skin.box);
+            GUILayout.Label("Skill ID", GUILayout.Width(60));
+            row.skill = GUILayout.TextField(row.skill ?? "", GUILayout.MinWidth(170));
+            GUILayout.Label("Min level", GUILayout.Width(75));
+            string level = GUILayout.TextField(row.minLevel == 0 ? "" : row.minLevel.ToString(), 10, GUILayout.Width(90));
+            row.minLevel = int.TryParse(level, out int parsed) ? parsed : 0;
+            if (GUILayout.Button("Remove", GUILayout.Width(72))) remove = i;
+            GUILayout.EndHorizontal();
+        }
+        if (remove >= 0)
+        {
+            rows!.RemoveAt(remove);
+            if (rows.Count == 0) recipe.skillRequirements = null;
+        }
+        if (GUILayout.Button("Add Skill Requirement", GUILayout.Width(190)))
+            (recipe.skillRequirements ??= new()).Add(new SkillRequirementDefinition { minLevel = 1 });
+        if (recipe.skillRequirements?.Count > 0)
+            GUILayout.Label("Use the ID supplied by your skills mod. A missing skill provider keeps this recipe locked.");
+    }
+
     private void DuplicateRecipe()
     {
         RecipeDefinition? source = CurrentRecipe;
@@ -727,6 +765,8 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
             id = (source.id ?? "recipe") + "-copy",
             enabled = source.enabled,
             stations = source.stations?.ToList() ?? new List<string>(),
+            skillRequirements = source.skillRequirements?.Select(s => new SkillRequirementDefinition
+                { skill = s?.skill ?? "", minLevel = s?.minLevel ?? 0 }).ToList(),
             ingredients = source.ingredients?
                 .Where(ingredient => ingredient != null)
                 .Select(ingredient => new IngredientDefinition
@@ -736,6 +776,7 @@ internal sealed class RecipeEditorUI : ModToolBehaviour
                 })
                 .ToList() ?? new List<IngredientDefinition>(),
             result = source.result,
+            resultAmount = source.resultAmount,
             workMinutes = source.workMinutes,
             description = source.description
         };

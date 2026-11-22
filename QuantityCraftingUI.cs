@@ -15,6 +15,7 @@ internal sealed class QuantityCraftingUI : MonoBehaviour
     private readonly Dictionary<string, int> available = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, int> counts = new(StringComparer.OrdinalIgnoreCase);
     private CraftingUIData? craftingData;
+    private CraftingStation station;
     private Player? player;
     private Inventory? inventory;
     private ResultData result = ResultData.None;
@@ -31,8 +32,17 @@ internal sealed class QuantityCraftingUI : MonoBehaviour
     private string cachedPickerSearch = "";
     private bool pickerDirty = true;
     private GUIStyle? resultStyle;
+    private bool browsingRecipes;
+    private string recipeSearch = "", lastRecipeSearch = "";
+    private int bookRevision = -1;
+    private Vector2 bookScroll;
+    private List<CompiledRecipe> bookEntries = new();
+    private readonly Dictionary<CompiledRecipe,string?> bookLocks = new();
+    private string? skillLock;
+    private int accessRevision = -1;
+    private float nextAccessPoll;
 
-    internal static void Open(CraftingUIData data)
+    internal static void Open(CraftingUIData data, CraftingStation station = CraftingStation.CustomCrafting)
     {
         Player current = Player.Instance;
         if (current == null || current.worldInventory == null) return;
@@ -44,13 +54,17 @@ internal sealed class QuantityCraftingUI : MonoBehaviour
         }
         if (instance.open) return;
         instance.craftingData = data;
+        instance.station = station;
+        instance.bookRevision = -1;
+        instance.accessRevision = -1;
+        instance.ingredientScroll = instance.resultScroll = Vector2.zero;
         instance.player = current;
         instance.inventory = current.worldInventory.inventory;
         instance.inventory.OnInventoryChanged += instance.InventoryChanged;
         instance.pickerSlot = -1;
         instance.pickerSearch = "";
         instance.selections.Clear();
-        for (int i = 0; i < CraftingStation.CustomCrafting.Capacity(); i++) instance.selections.Add(new IngredientSelection());
+        for (int i = 0; i < station.Capacity(); i++) instance.selections.Add(new IngredientSelection());
         instance.open = true;
         instance.dirty = instance.inventoryDirty = true;
         current.SetInputBlock(true);
@@ -68,7 +82,9 @@ internal sealed class QuantityCraftingUI : MonoBehaviour
         KeyCode closeKey = SettingsUI.Instance != null ? SettingsUI.Instance.closeMenuKeyCode : KeyCode.Escape;
         if (Input.GetKeyDown(closeKey) || Input.GetKeyDown(KeyCode.Escape))
         {
-            if (pickerSlot >= 0) pickerSlot = -1; else Close();
+            if (browsingRecipes) browsingRecipes = false;
+            else if (pickerSlot >= 0) pickerSlot = -1;
+            else Close();
         }
         if (open) Refresh();
     }
@@ -94,17 +110,37 @@ internal sealed class QuantityCraftingUI : MonoBehaviour
             inventoryDirty = false;
             dirty = true;
         }
-        if (!dirty) return;
+        if (!dirty) { RefreshAccess(false); return; }
         dirty = false;
         pickerDirty = true;
         counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (IngredientSelection selection in selections)
             if (selection.Quantity > 0 && selection.ItemName.Length > 0) counts[selection.ItemName] = selection.Quantity;
-        RecipeRegistry.TryGetConfiguredResult(CraftingStation.CustomCrafting, counts, out result);
+        RecipeRegistry.TryGetConfiguredResult(station, counts, out result);
         resultName = result.resultItem != null ? result.resultItem.GetFinalName() : "";
         ingredients = CraftTransaction.Select(inventory!, counts);
         craftError = "";
-        canCraft = result.resultItem != null && CraftTransaction.CanComplete(inventory!, ingredients, result.resultItem, out craftError);
+        canCraft = result.resultItem != null && CraftTransaction.CanComplete(inventory!, ingredients, BatchResult.Units(result), out craftError);
+        RefreshAccess(true);
+    }
+
+    private void RefreshAccess(bool resultChanged)
+    {
+        int revision = CraftingApi.AccessRevision;
+        bool poll = accessRevision != revision || Time.unscaledTime >= nextAccessPoll;
+        if (poll)
+        {
+            accessRevision = revision; nextAccessPoll = Time.unscaledTime + 0.5f;
+            bookLocks.Clear();
+        }
+        if (poll || resultChanged) skillLock = CraftingApi.LockReason(player!,station,result);
+    }
+
+    private string? BookLock(CompiledRecipe recipe)
+    {
+        if (!bookLocks.TryGetValue(recipe,out var reason))
+            bookLocks[recipe] = reason = CraftingApi.LockReason(player!,station,recipe);
+        return reason;
     }
 
     private void OnGUI()
@@ -119,7 +155,9 @@ internal sealed class QuantityCraftingUI : MonoBehaviour
         GUI.DrawTexture(new Rect(0, 0, 1920, 1080), Texture2D.whiteTexture);
         GUI.color = Color.white;
         GUILayout.BeginArea(new Rect(300, 90, 1320, 900), GUI.skin.box);
-        if (pickerSlot >= 0) DrawItemPicker(); else DrawCraftingPanel();
+        if (browsingRecipes) DrawRecipeBook();
+        else if (pickerSlot >= 0) DrawItemPicker();
+        else DrawCraftingPanel();
         GUILayout.EndArea();
     }
 
@@ -127,7 +165,11 @@ internal sealed class QuantityCraftingUI : MonoBehaviour
     {
         resultStyle ??= new GUIStyle(GUI.skin.box) { richText = true, wordWrap = true };
         GUILayout.BeginHorizontal(GUI.skin.box);
-        GUILayout.Label($"Custom Crafting — {CraftingStation.CustomCrafting.Capacity()} ingredient types");
+        GUILayout.Label($"{station.Label()} — {station.Capacity()} ingredient types");
+        if (GUILayout.Button("Browse recipes", GUILayout.Width(180)))
+        {
+            browsingRecipes = true; recipeSearch = ""; bookScroll = Vector2.zero; GUIUtility.ExitGUI();
+        }
         if (GUILayout.Button("Close", GUILayout.Width(100))) { Close(); GUIUtility.ExitGUI(); }
         GUILayout.EndHorizontal();
         ingredientScroll = GUILayout.BeginScrollView(ingredientScroll, GUILayout.Height(550));
@@ -144,14 +186,15 @@ internal sealed class QuantityCraftingUI : MonoBehaviour
             GUILayout.Label($"Work time: {result.workMinutes} in-game minute(s)");
         }
         GUILayout.EndScrollView();
-        GUI.enabled = canCraft;
+        GUI.enabled = canCraft && skillLock == null;
         if (GUILayout.Button("Craft", GUILayout.MinHeight(60)))
         {
-            CraftExecution.Start(player!, craftingData!, ingredients.ToList(), result, Close);
+            CraftExecution.Start(player!, craftingData!, station, ingredients.ToList(), result, Close);
             GUIUtility.ExitGUI();
         }
         GUI.enabled = true;
-        if (!canCraft && result.resultItem != null) GUILayout.Label(craftError);
+        if (skillLock != null) GUILayout.Label("Locked: " + skillLock);
+        else if (!canCraft && result.resultItem != null) GUILayout.Label(craftError);
     }
 
     private void DrawIngredientRow(int index, IngredientSelection selection)
@@ -187,7 +230,7 @@ internal sealed class QuantityCraftingUI : MonoBehaviour
             cachedPickerSearch = pickerSearch;
             HashSet<string> selected = selections.Where((s, i) => i != pickerSlot).Select(s => s.ItemName).ToHashSet(StringComparer.OrdinalIgnoreCase);
             pickerItems = ItemCatalog.Items.Where(item => available.ContainsKey(item.name) &&
-                RecipeRegistry.IsIngredientName(CraftingStation.CustomCrafting, item.name) && !selected.Contains(item.name) &&
+                RecipeRegistry.IsIngredientName(station, item.name) && !selected.Contains(item.name) &&
                 item.name.IndexOf(pickerSearch, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
         }
         GUILayout.Label($"{pickerItems.Count} available ingredient type(s)");
@@ -200,9 +243,39 @@ internal sealed class QuantityCraftingUI : MonoBehaviour
         GUIUtility.ExitGUI();
     }
 
+    private void DrawRecipeBook()
+    {
+        GUILayout.BeginHorizontal(GUI.skin.box);
+        GUILayout.Label($"{station.Label()} recipes — choose one to fill the slots. Nothing is consumed until you craft.");
+        if (GUILayout.Button("Back", GUILayout.Width(100))) { browsingRecipes = false; GUIUtility.ExitGUI(); }
+        GUILayout.EndHorizontal();
+        GUILayout.Label("Search by result, ingredient, or pack ID");
+        recipeSearch = GUILayout.TextField(recipeSearch);
+        if (bookRevision != RecipeRegistry.Revision || lastRecipeSearch != recipeSearch)
+        {
+            bookEntries = RecipeRegistry.BrowseBenchRecipes(recipeSearch, station);
+            lastRecipeSearch = recipeSearch; bookRevision = RecipeRegistry.Revision; bookScroll = Vector2.zero;
+        }
+        if (bookEntries.Count == 0) { GUILayout.Label("No matching workbench recipes in enabled packs."); return; }
+        var choice = VirtualItemList.Draw(bookEntries, ref bookScroll, r => r.ResultAmount + " × " + r.ResultName + "  •  " + r.WorkMinutes +
+            " min\n" + string.Join(", ", r.RequiredItems.Select(p => $"{p.Value} × {p.Key}")), lockedReason: BookLock);
+        if (choice == null) return;
+        int i = 0;
+        foreach (var entry in choice.RequiredItems)
+        {
+            selections[i].ItemName = entry.Key;
+            selections[i++].Quantity = entry.Value;
+        }
+        for (; i < selections.Count; i++) { selections[i].ItemName = ""; selections[i].Quantity = 0; }
+        browsingRecipes = false;
+        dirty = true;
+        GUIUtility.ExitGUI();
+    }
+
     private void Close()
     {
         open = false;
+        browsingRecipes = false;
         UnityEngine.SceneManagement.SceneManager.activeSceneChanged -= SceneChanged;
         if (inventory != null) inventory.OnInventoryChanged -= InventoryChanged;
         if (ownsInputBlock)
@@ -215,6 +288,7 @@ internal sealed class QuantityCraftingUI : MonoBehaviour
         craftingData = null;
         result = ResultData.None;
         ingredients.Clear();
+        bookLocks.Clear();
         pickerSlot = -1;
     }
     private void OnDisable() => Close();

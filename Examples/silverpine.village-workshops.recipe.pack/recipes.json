@@ -1,0 +1,314 @@
+{
+  "schemaVersion": 2,
+  "packId": "silverpine.village-workshops",
+  "displayName": "Village Workshops",
+  "enabled": true,
+  "recipes": [
+    {
+      "id": "build-joiner",
+      "stations": ["CustomCrafting"],
+      "ingredients": [
+        { "item": "Plank", "amount": 6 },
+        { "item": "Nails", "amount": 2 },
+        { "item": "Branch", "amount": 3 }
+      ],
+      "result": "Joiner's Bench",
+      "workMinutes": 180,
+      "description": "Assemble the frame, fit a vise and level the working surface."
+    },
+    {
+      "id": "build-tailor",
+      "stations": ["CustomCrafting", "Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 5 },
+        { "item": "Nails", "amount": 1 },
+        { "item": "Spool of Thread", "amount": 2 },
+        { "item": "Branch", "amount": 1 }
+      ],
+      "result": "Tailor's Frame",
+      "workMinutes": 165,
+      "description": "Fit the warp beam and string the frame for the first length of cloth."
+    },
+    {
+      "id": "build-oven",
+      "stations": ["CustomCrafting", "Joinery"],
+      "ingredients": [
+        { "item": "Rock", "amount": 12 },
+        { "item": "Plank", "amount": 4 },
+        { "item": "Iron Ore", "amount": 7 },
+        { "item": "Nails", "amount": 2 }
+      ],
+      "result": "Village Bake Oven",
+      "workMinutes": 200,
+      "description": "Lay the crown on a timber base and fit the ironwork to the mouth."
+    },
+    {
+      "id": "end-table",
+      "stations": ["Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 2 },
+        { "item": "Branch", "amount": 3 }
+      ],
+      "result": "End Table",
+      "workMinutes": 55,
+      "description": "Join a little bedside table from boards and branch legs."
+    },
+    {
+      "id": "table",
+      "stations": ["Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 4 },
+        { "item": "Branch", "amount": 1 }
+      ],
+      "result": "Table",
+      "workMinutes": 80,
+      "description": "Peg a square top onto four legs."
+    },
+    {
+      "id": "round-table",
+      "stations": ["Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 3 },
+        { "item": "Branch", "amount": 4 }
+      ],
+      "result": "Round Table",
+      "workMinutes": 90,
+      "description": "Shape and smooth a round top and brace its pedestal."
+    },
+    {
+      "id": "chair",
+      "stations": ["Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 2 },
+        { "item": "Nails", "amount": 1 },
+        { "item": "Branch", "amount": 1 }
+      ],
+      "result": "Chair",
+      "workMinutes": 75,
+      "description": "Fit the seat, back and rails into a matched frame."
+    },
+    {
+      "id": "wooden-bench",
+      "stations": ["Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 3 },
+        { "item": "Nails", "amount": 1 }
+      ],
+      "result": "Wooden Bench",
+      "workMinutes": 100,
+      "description": "Brace a long seat between two end frames."
+    },
+    {
+      "id": "divider",
+      "stations": ["Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 4 },
+        { "item": "Branch", "amount": 4 }
+      ],
+      "result": "Wooden Room Divider",
+      "workMinutes": 95,
+      "description": "Peg together a set of folding privacy panels."
+    },
+    {
+      "id": "dresser",
+      "stations": ["Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 3 },
+        { "item": "Nails", "amount": 1 },
+        { "item": "Branch", "amount": 1 }
+      ],
+      "result": "Dresser",
+      "workMinutes": 105,
+      "description": "Build a low cabinet and fit its drawers."
+    },
+    {
+      "id": "bookshelf",
+      "stations": ["Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 5 }
+      ],
+      "result": "Bookshelf",
+      "workMinutes": 100,
+      "description": "Cut and fit shelves into an upright bookcase."
+    },
+    {
+      "id": "door",
+      "stations": ["Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 3 },
+        { "item": "Branch", "amount": 1 }
+      ],
+      "result": "Wooden Door",
+      "workMinutes": 65,
+      "description": "Pin a boarded door to its battens."
+    },
+    {
+      "id": "simple-bed",
+      "stations": ["Joinery"],
+      "ingredients": [
+        { "item": "Plank", "amount": 3 },
+        { "item": "Towel", "amount": 2 },
+        { "item": "Branch", "amount": 1 }
+      ],
+      "result": "Simple Bed",
+      "workMinutes": 95,
+      "description": "Build a light frame and stretch a sleeping surface across it."
+    },
+    {
+      "id": "bed",
+      "stations": ["Joinery"],
+      "ingredients": [
+        { "item": "Simple Bed", "amount": 1 },
+        { "item": "Towel", "amount": 1 }
+      ],
+      "result": "Bed",
+      "workMinutes": 140,
+      "description": "Pad and finish a simple bed."
+    },
+    {
+      "id": "upholstered-chair",
+      "stations": ["Tailoring"],
+      "ingredients": [
+        { "item": "Chair", "amount": 1 },
+        { "item": "Roll of Cloth", "amount": 1 },
+        { "item": "Spool of Thread", "amount": 1 }
+      ],
+      "result": "Fancy Armchair",
+      "workMinutes": 170,
+      "description": "Upholster a wooden chair with fitted arms and a padded back."
+    },
+    {
+      "id": "couch",
+      "stations": ["Tailoring"],
+      "ingredients": [
+        { "item": "Wooden Bench", "amount": 1 },
+        { "item": "Roll of Cloth", "amount": 2 },
+        { "item": "Spool of Thread", "amount": 1 }
+      ],
+      "result": "Fancy Couch",
+      "workMinutes": 210,
+      "description": "Fit a padded back and cover the bench in a double length of cloth."
+    },
+    {
+      "id": "scarves",
+      "stations": ["Tailoring"],
+      "ingredients": [
+        { "item": "Spool of Thread", "amount": 2 }
+      ],
+      "result": "Wool Scarf",
+      "resultAmount": 3,
+      "workMinutes": 110,
+      "description": "Work a soft scarf warp into three finished lengths."
+    },
+    {
+      "id": "red-rug",
+      "stations": ["Tailoring"],
+      "ingredients": [
+        { "item": "Spool of Thread", "amount": 2 },
+        { "item": "Rosehips", "amount": 1 }
+      ],
+      "result": "Red Rug",
+      "workMinutes": 100,
+      "description": "Weave a small rug with a rosehip-colored border."
+    },
+    {
+      "id": "white-rug",
+      "stations": ["Tailoring"],
+      "ingredients": [
+        { "item": "Roll of Cloth", "amount": 1 },
+        { "item": "Branch", "amount": 2 }
+      ],
+      "result": "White Rug",
+      "workMinutes": 120,
+      "description": "Weave strips of undyed cloth into a pale floor rug."
+    },
+    {
+      "id": "colorful-rug",
+      "stations": ["Tailoring"],
+      "ingredients": [
+        { "item": "Roll of Cloth", "amount": 1 },
+        { "item": "Spool of Thread", "amount": 1 },
+        { "item": "Rosehips", "amount": 1 }
+      ],
+      "result": "Large Colorful Rug",
+      "workMinutes": 155,
+      "description": "Work a contrasting border into a large woven rug."
+    },
+    {
+      "id": "pretzels",
+      "stations": ["Baking"],
+      "ingredients": [
+        { "item": "Flour", "amount": 1 },
+        { "item": "Branch", "amount": 2 }
+      ],
+      "result": "Pretzel",
+      "resultAmount": 4,
+      "workMinutes": 80,
+      "description": "Twist the dough and bake a tray of four pretzels."
+    },
+    {
+      "id": "croissants",
+      "stations": ["Baking"],
+      "ingredients": [
+        { "item": "Flour", "amount": 1 },
+        { "item": "Bottle of Milk", "amount": 1 },
+        { "item": "Branch", "amount": 2 }
+      ],
+      "result": "Croissant",
+      "resultAmount": 6,
+      "workMinutes": 110,
+      "description": "Fold enriched dough, shape six crescents and bake."
+    },
+    {
+      "id": "strudels",
+      "stations": ["Baking"],
+      "ingredients": [
+        { "item": "Flour", "amount": 1 },
+        { "item": "Cider", "amount": 1 },
+        { "item": "Branch", "amount": 2 }
+      ],
+      "result": "Apple Strudel",
+      "resultAmount": 6,
+      "workMinutes": 95,
+      "description": "Reduce apple cider for the filling and bake six folded pastries."
+    },
+    {
+      "id": "hearth-loaves",
+      "stations": ["Baking"],
+      "ingredients": [
+        { "item": "Flour", "amount": 2 },
+        { "item": "Branch", "amount": 3 }
+      ],
+      "result": "Loaf of Bread",
+      "resultAmount": 4,
+      "workMinutes": 130,
+      "description": "Heat the hearth for a double batch of four loaves."
+    },
+    {
+      "id": "mushroom-flatbread",
+      "stations": ["Baking"],
+      "ingredients": [
+        { "item": "Flour", "amount": 1 },
+        { "item": "Winter Chanterelle", "amount": 2 },
+        { "item": "Branch", "amount": 2 }
+      ],
+      "result": "Vegetable Flatbread",
+      "resultAmount": 7,
+      "workMinutes": 105,
+      "description": "Top the flatbreads with sliced chanterelles and bake them on the hearth."
+    },
+    {
+      "id": "berry-muffins",
+      "stations": ["Baking"],
+      "ingredients": [
+        { "item": "Flour", "amount": 1 },
+        { "item": "Vesilberry", "amount": 1 },
+        { "item": "Branch", "amount": 2 }
+      ],
+      "result": "Muffin",
+      "resultAmount": 6,
+      "workMinutes": 85,
+      "description": "Bake a tray of six berry muffins in the banked oven."
+    }
+  ]
+}
